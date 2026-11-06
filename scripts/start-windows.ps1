@@ -1,7 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$AhkPath,
-    [switch]$SkipUpstream
+    [string]$AhkPath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,23 +27,12 @@ if ((Get-Item -LiteralPath $AhkPath).VersionInfo.FileMajorPart -ne 2) {
     throw 'The selected executable must be the AutoHotkey v2 interpreter.'
 }
 
-$extensionScript = Join-Path $projectRoot 'extensions\ahk\Main.ahk'
-$upstreamScript = Join-Path $projectRoot 'vendor\D4keyHelp\D4keyHelp.ahk'
-$scriptsToStart = @($extensionScript)
-if (-not $SkipUpstream) {
-    $scriptsToStart = @($upstreamScript, $extensionScript)
+$appScript = Join-Path $projectRoot 'app\ahk\D4Box.ahk'
+if (-not (Test-Path -LiteralPath $appScript -PathType Leaf)) {
+    throw "Missing application entry: $appScript"
 }
 
-foreach ($script in $scriptsToStart) {
-    if (-not (Test-Path -LiteralPath $script -PathType Leaf)) {
-        throw "Missing script: $script. Run git submodule update --init --recursive."
-    }
-}
-
-foreach ($script in $scriptsToStart) {
-    $process = Start-Process -FilePath $AhkPath -ArgumentList @('"' + $script + '"') `
-        -WorkingDirectory (Split-Path -Parent $script) -PassThru
-    Write-Host "Started PID $($process.Id): $script"
-}
-
-Write-Host 'In Diablo IV, press Ctrl+Alt+F8 for window diagnostics. Exit each app through its tray menu.'
+$process = Start-Process -FilePath $AhkPath -ArgumentList @('"' + $appScript + '"') `
+    -WorkingDirectory (Split-Path -Parent $appScript) -PassThru
+Write-Host "Started d4box PID $($process.Id): $appScript"
+Write-Host 'In Diablo IV, F1 toggles the macro; Ctrl+Alt+F8 shows window diagnostics.'

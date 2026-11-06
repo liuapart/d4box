@@ -1,10 +1,13 @@
 # d4box 开发约定
 
 - 主项目在 macOS 开发，AutoHotkey 和游戏交互在 Windows 验证。
-- `vendor/D4keyHelp` 是上游 Git submodule。默认不修改、不提交上游源码；更新其指针必须说明对应版本和验证情况。
-- 自有 AHK 代码放在 `extensions/ahk`，标识符统一使用 `D4Box_` 前缀。
-- 扩展与上游目前是独立进程；不要依赖跨进程全局变量，也不要声称已实现插件接口或通信协议。
-- 运行产物写入 `.runtime`。不要提交账号、凭据、个人设置或包含私人信息的截图。
+- `app/ahk` 是主仓库直接维护的应用源码，可以修改、重构；项目不再使用 submodule。
+- 源码基于 D4KeyHelp 迁入。保留 `THIRD_PARTY_NOTICES.md`、许可文本和 `docs/upstream` 中的来源声明。
+- 统一入口是 `app/ahk/D4Box.ahk`，一个进程管理界面、热键、宏和诊断。新增项目级辅助函数使用 `D4Box_` 前缀。
+- 界面文案在 `app/ahk/utils/Lang.ahk` 同时维护中文、英文；语言模块必须早于依赖它的全局变量加载。
+- 保持原有配置兼容。迁入代码的设置及日志仍在入口脚本旁，新诊断产物在该目录的 `.runtime`；这些文件都已忽略。
+- 不要提交账号、凭据、个人设置或含私人信息的截图。
 - 新增自动点击流程应检查前置界面、执行结果、超时和取消；不要仅依靠固定坐标与延时。
-- 提交前运行 `python3 scripts/check_project.py` 和 `git diff --check`。
+- 提交前运行 `python3 scripts/check_project.py`、`bash -n app/ahk/tests/run.sh` 和 `git diff --check`。
+- Windows 上使用 `bash app/ahk/tests/run.sh validate` 和 `smoke` 验证加载与界面；血球回归还需要本地截图样本。
 - 区分静态检查、离线验证和真实 Windows/游戏验证，未经实际验证不得声称功能已可用。

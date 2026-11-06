@@ -6,3 +6,13 @@ __pycache__/
 .env
 .env.*
 !.env.example
+
+# Migrated application settings, logs, and local regression fixtures.
+/app/ahk/settings.ini
+/app/ahk/debugd4*.log
+/app/ahk/tests/settings.ini
+/app/ahk/tests/debugd4*.log
+/app/ahk/tests/*result.txt
+/app/ahk/tests/data/
+/app/ahk/*.png
+/app/ahk/*.PNG

@@ -1,0 +1,152 @@
+; ========== 宏控制功能 ==========
+/**
+ * 切换宏运行状态
+ */
+ToggleMacro(*) {
+    global isRunning, isPaused, previouslyPaused, mouseAutoMoveEnabled, mouseAutoMove
+    global compassEnabled, compassControl
+
+    ; 确保完全停止所有定时器
+    StopAllTimers()
+
+    ; 切换运行状态
+    isRunning := !isRunning
+
+    if isRunning {
+        ; 重置暂停状态
+        isPaused := false
+        previouslyPaused := false
+
+        ; 启动前先确保没有残留的按下状态（上次异常退出等）
+        ReleaseAllKeys()
+
+        ; 确保鼠标自动移动状态与GUI勾选框一致
+        mouseAutoMoveEnabled := (mouseAutoMove.enable.Value = 1)
+
+        ; 确保罗盘专用状态与GUI勾选框一致
+        compassEnabled := (compassControl.enable.Value = 1)
+
+        ; 只有在暗黑4窗口激活时才启动定时器
+        if WinActive("ahk_class Diablo IV Main Window Class") {
+            ; 如果罗盘功能已启用，立即执行一次
+            if (compassEnabled) {
+                DebugLog("宏启动时立即执行罗盘功能")
+                CompassClick()
+            }
+
+            StartAllTimers()
+            UpdateStatus("running", L("bar.macroStarted"))
+        } else {
+            isPaused := true
+            UpdateStatus("pausedWindow", L("bar.windowInactive"))
+        }
+    } else {
+        ; 确保重置所有状态
+        isPaused := false
+        previouslyPaused := false
+        UpdateStatus("stopped", L("bar.macroStopped"))
+
+        ; 确保释放所有按键
+        ReleaseAllKeys()
+    }
+
+    UpdateStartStopButton()
+    DebugLog("宏状态切换: " . (isRunning ? "运行" : "停止"))
+}
+
+/**
+ * 切换Shift键状态
+ */
+ToggleShift(*) {
+    global shiftEnabled
+    shiftEnabled := !shiftEnabled
+    DebugLog("Shift键状态: " . (shiftEnabled ? "启用" : "禁用"))
+}
+
+/**
+ * 在宏运行中根据enable状态启停一个简单定时器
+ * 共享给ToggleMouseAutoMove/ToggleCompass等切换函数使用
+ * @param {String} stateKey - timerStates中的键名
+ * @param {Object} control - 含interval属性的控件
+ * @param {Function} timerFunc - 定时器函数
+ * @param {Boolean} enabled - 启用/禁用
+ * @param {String} label - 日志标签
+ */
+ApplyTimerToggle(stateKey, control, timerFunc, enabled, label) {
+    global isRunning, isPaused, timerStates
+
+    if (!isRunning || isPaused)
+        return
+
+    if (enabled) {
+        interval := ToInt(control.interval.Value)
+        if (interval > 0) {
+            SetTimer(timerFunc, interval)
+            timerStates[stateKey] := true
+            DebugLog("启动" label "定时器 - 间隔: " interval, 2)
+        }
+    } else {
+        SetTimer(timerFunc, 0)
+        timerStates[stateKey] := false
+        DebugLog("停止" label "定时器")
+    }
+}
+
+/**
+ * 切换鼠标自动移动功能
+ */
+ToggleMouseAutoMove(*) {
+    global mouseAutoMoveEnabled, mouseAutoMove
+
+    mouseAutoMoveEnabled := !mouseAutoMoveEnabled
+    mouseAutoMove.enable.Value := mouseAutoMoveEnabled ? 1 : 0
+
+    ApplyTimerToggle("mouseAutoMove", mouseAutoMove, MoveMouseToNextPoint, mouseAutoMoveEnabled, "鼠标自动移动")
+    DebugLog("鼠标自动移动状态切换: " . (mouseAutoMoveEnabled ? "启用" : "禁用"))
+}
+
+/**
+ * 切换鼠标点击暂停宏功能
+ */
+TogglePauseOnClick(*) {
+    global pauseOnClickEnabled, pauseOnClick
+
+    pauseOnClickEnabled := !pauseOnClickEnabled
+
+    ; 更新GUI勾选框状态以匹配当前状态
+    pauseOnClick.enable.Value := pauseOnClickEnabled ? 1 : 0
+
+    DebugLog("鼠标点击暂停宏状态切换: " . (pauseOnClickEnabled ? "启用" : "禁用"))
+}
+
+/**
+ * 鼠标点击后恢复宏运行
+ */
+ResumeAfterClickPause() {
+    global isRunning, isPaused, temporaryPaused
+
+    ; 停止恢复定时器
+    SetTimer(ResumeAfterClickPause, 0)
+
+    ; 如果宏仍在运行中且是临时暂停状态，则恢复宏
+    if (isRunning && temporaryPaused) {
+        ; 恢复宏运行
+        StartAllTimers()
+        temporaryPaused := false
+        UpdateStatus("running", L("bar.clickResumed"))
+        DebugLog("宏已从鼠标点击暂停中恢复")
+    }
+}
+
+/**
+ * 切换罗盘专用功能
+ */
+ToggleCompass(*) {
+    global compassEnabled, compassControl
+
+    compassEnabled := !compassEnabled
+    compassControl.enable.Value := compassEnabled ? 1 : 0
+
+    ApplyTimerToggle("compass", compassControl, CompassClick, compassEnabled, "罗盘专用")
+    DebugLog("罗盘专用状态切换: " . (compassEnabled ? "启用" : "禁用"))
+}
