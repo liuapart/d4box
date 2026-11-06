@@ -18,9 +18,13 @@
 #Include "..\gui\MainGUI.ahk"
 #Include "..\gui\SkillControls.ahk"
 #Include "..\gui\MouseControls.ahk"
+#Include "..\gui\CubeWorkflowGUI.ahk"
 #Include "..\functions\SkillSystem.ahk"
 #Include "..\functions\MouseActions.ahk"
 #Include "..\functions\UtilityActions.ahk"
+#Include "..\functions\InventoryScanner.ahk"
+#Include "..\functions\CubeProfiles.ahk"
+#Include "..\functions\CubeRunner.ahk"
 #Include "..\functions\HealthGlobe.ahk"
 #Include "..\functions\ConditionSystem.ahk"
 #Include "..\functions\WindowDiagnostics.ahk"
@@ -39,6 +43,17 @@ try {
     Append "GUI 创建成功"
 } catch as err {
     Append "GUI 创建失败: " err.Message " @" err.File ":" err.Line
+}
+
+try {
+    D4Box_OpenCubeEditor()
+    if !IsObject(D4Box_CubeUI) || D4Box_CubeUI.list.GetCount() < 1
+        throw Error("Workflow editor has no steps")
+    D4Box_CubeUI.dirty := false
+    D4Box_CubeCloseEditor()
+    Append "配方流程编辑器创建正常"
+} catch as err {
+    Append "配方流程编辑器异常: " err.Message " @" err.File ":" err.Line
 }
 
 ; 两个按钮的回调直接调用一遍（不依赖点击）

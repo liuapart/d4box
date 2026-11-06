@@ -131,7 +131,7 @@ step_validate() {
     # validate 正常约 0.1 秒，收紧到 10 秒，出错时不必白等 30 秒
     local RUN_TIMEOUT
     if command -v timeout >/dev/null 2>&1; then RUN_TIMEOUT="timeout 10"; fi
-    for f in D4Box.ahk tests/SmokeTest.ahk tests/HealthGlobeTest.ahk; do
+    for f in D4Box.ahk tests/SmokeTest.ahk tests/HealthGlobeTest.ahk tests/CubeWorkflowTest.ahk; do
         run_ahk //validate //ErrorStdOut "$f"
         rc=$AHK_RC
         if [ "$rc" -eq 0 ]; then
@@ -258,6 +258,26 @@ step_globe() {
     return $bad
 }
 
+# Workflow tests use a fake adapter: no game input and no screenshot fixtures.
+step_workflow() {
+    echo "== Workflow/model regression =="
+    local report_file="tests/cube_result.txt"
+    rm -f "$report_file"
+    run_ahk tests/CubeWorkflowTest.ahk
+    if [ "$AHK_RC" -ne 0 ] || [ ! -f "$report_file" ]; then
+        report "workflow" 1 "exit=$AHK_RC or missing report"
+        [ -f "$report_file" ] && indent < "$report_file"
+        return 1
+    fi
+    if grep -q '^FAIL ' "$report_file" || ! grep -q '^done$' "$report_file"; then
+        report "workflow" 1 "regression failed or incomplete"
+        indent < "$report_file"
+        return 1
+    fi
+    report "workflow" 0
+    indent < "$report_file"
+}
+
 # ---------- 调度 ----------
 
 echo "解释器: $AHK"
@@ -268,9 +288,10 @@ case "$STEP" in
     validate) step_validate ;;
     smoke)    step_smoke ;;
     globe)    step_globe ;;
-    all)      step_validate; step_smoke; step_globe ;;
+    workflow) step_workflow ;;
+    all)      step_validate; step_smoke; step_workflow; step_globe ;;
     *)
-        echo "用法: bash tests/run.sh [validate|smoke|globe|all] [--export]" >&2
+        echo "用法: bash tests/run.sh [validate|smoke|workflow|globe|all] [--export]" >&2
         exit 2
         ;;
 esac

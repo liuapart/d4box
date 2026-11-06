@@ -58,7 +58,8 @@ CreateExtraSettings() {
     compassIntervalEdit := myGui.AddEdit("x270 y588 w90 Number", "65000")
     compassUpDown := myGui.AddUpDown("0x80 Range1000-600000", 65000)
     upgradeYellowEnable := myGui.AddCheckbox("x382 y590 w114 h22" MUI_CardBg, L("extra.upgradeYellow"))
-    ModernButton(myGui, 500, 584, 128, 30, L("extra.transmute"), "soft", {radius: 8, fontSize: 9}).OnEvent("Click", AutoTransmute)
+    upgradeYellowEnable.ToolTip := L("cube.legacyYellowTip")
+    ModernButton(myGui, 500, 584, 128, 30, L("extra.transmute"), "soft", {radius: 8, fontSize: 9}).OnEvent("Click", D4Box_OpenCubeEditor)
     helpButton := ModernButton(myGui, 634, 584, 30, 30, "?", "secondary", {radius: 15, fontSize: 10})
     helpButton.OnEvent("Click", OpenTransmuteHelp)
     helpButton.ctrl.ToolTip := L("extra.transmuteHelp.tip")
@@ -208,5 +209,5 @@ OnHealthCheckToggled(ctrl, *) {
  * 打开说明文档（链接随界面语言切换：中文 README.md / 英文 README_EN.md）
  */
 OpenTransmuteHelp(*) {
-    Run L("extra.transmuteHelp.url")
+    Run A_ScriptDir "\..\..\docs\cube-workflows.md"
 }

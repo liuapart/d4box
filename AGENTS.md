@@ -8,6 +8,7 @@
 - 保持原有配置兼容。迁入代码的设置及日志仍在入口脚本旁，新诊断产物在该目录的 `.runtime`；这些文件都已忽略。
 - 不要提交账号、凭据、个人设置或含私人信息的截图。
 - 新增自动点击流程应检查前置界面、执行结果、超时和取消；不要仅依靠固定坐标与延时。
-- 提交前运行 `python3 scripts/check_project.py`、`bash -n app/ahk/tests/run.sh` 和 `git diff --check`。
-- Windows 上使用 `bash app/ahk/tests/run.sh validate` 和 `smoke` 验证加载与界面；血球回归还需要本地截图样本。
+- 提交前运行 `python3 scripts/check_project.py`、`python3 -m unittest discover -s scripts/tests -v`、`bash -n app/ahk/tests/run.sh` 和 `git diff --check`。
+- Windows 上使用 `bash app/ahk/tests/run.sh validate` 、`workflow` 和 `smoke` 验证加载、流程与界面；血球回归还需要本地截图样本。
 - 区分静态检查、离线验证和真实 Windows/游戏验证，未经实际验证不得声称功能已可用。
+- 魔盒配方通过 `config/cube-workflows.ini` 和流程编辑器维护，执行器只处理通用动作。新增配方优先添加数据，避免恢复专用 `TransmuteXXX` 函数。

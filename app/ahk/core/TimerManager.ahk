@@ -3,6 +3,9 @@
  * 启动所有定时器
  */
 StartAllTimers() {
+    global D4Box_CubeBusy
+    if D4Box_CubeBusy
+        return
     ; 先停止所有定时器，确保清理
     StopAllTimers()
 

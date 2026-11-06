@@ -3,12 +3,19 @@
 
 ^!F8::D4Box_ShowWindowInfo()
 
+#HotIf WinActive("ahk_class Diablo IV Main Window Class") || D4Box_CubeBusy
 #MaxThreadsPerHotkey 2
 *F3::AutoTransmute()
 #MaxThreadsPerHotkey 1
+#HotIf WinActive("ahk_class Diablo IV Main Window Class")
 
 Tab::{
-    global isRunning, isPaused
+    global isRunning, isPaused, D4Box_CubeBusy
+    if D4Box_CubeBusy {
+        D4Box_InterruptCube()
+        Send "{Tab}"
+        return
+    }
 
     ; 发送原始Tab键
     Send "{Tab}"
@@ -32,7 +39,10 @@ Tab::{
 ; 添加鼠标钩子监听
 LButton::
 RButton::{
-    global isRunning, isPaused, pauseOnClickEnabled, temporaryPaused, pauseOnClick
+    global isRunning, isPaused, pauseOnClickEnabled, temporaryPaused, pauseOnClick, D4Box_CubeBusy
+    interruptedCube := D4Box_CubeBusy
+    if interruptedCube
+        D4Box_InterruptCube()
 
     ; 获取当前按键
     key := A_ThisHotkey = "LButton" ? "LButton" : "RButton"
@@ -45,6 +55,9 @@ RButton::{
 
     ; 发送释放事件
     Send "{" key " up}"
+
+    if interruptedCube
+        return
 
     ; 检查是否需要暂停宏
     if (isRunning && !isPaused && pauseOnClickEnabled) {

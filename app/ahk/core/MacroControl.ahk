@@ -6,6 +6,15 @@ ToggleMacro(*) {
     global isRunning, isPaused, previouslyPaused, mouseAutoMoveEnabled, mouseAutoMove
     global compassEnabled, compassControl
 
+    global D4Box_CubeBusy
+    if D4Box_CubeBusy {
+        D4Box_CancelCube()
+        isRunning := false
+        isPaused := false
+        UpdateStartStopButton()
+        return
+    }
+
     ; 确保完全停止所有定时器
     StopAllTimers()
 
@@ -75,7 +84,8 @@ ToggleShift(*) {
 ApplyTimerToggle(stateKey, control, timerFunc, enabled, label) {
     global isRunning, isPaused, timerStates
 
-    if (!isRunning || isPaused)
+    global D4Box_CubeBusy
+    if (!isRunning || isPaused || D4Box_CubeBusy)
         return
 
     if (enabled) {
@@ -129,7 +139,8 @@ ResumeAfterClickPause() {
     SetTimer(ResumeAfterClickPause, 0)
 
     ; 如果宏仍在运行中且是临时暂停状态，则恢复宏
-    if (isRunning && temporaryPaused) {
+    global D4Box_CubeBusy
+    if (isRunning && temporaryPaused && !D4Box_CubeBusy) {
         ; 恢复宏运行
         StartAllTimers()
         temporaryPaused := false

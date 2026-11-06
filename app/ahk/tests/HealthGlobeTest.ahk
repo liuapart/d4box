@@ -18,9 +18,13 @@
 #Include "..\gui\MainGUI.ahk"
 #Include "..\gui\SkillControls.ahk"
 #Include "..\gui\MouseControls.ahk"
+#Include "..\gui\CubeWorkflowGUI.ahk"
 #Include "..\functions\SkillSystem.ahk"
 #Include "..\functions\MouseActions.ahk"
 #Include "..\functions\UtilityActions.ahk"
+#Include "..\functions\InventoryScanner.ahk"
+#Include "..\functions\CubeProfiles.ahk"
+#Include "..\functions\CubeRunner.ahk"
 #Include "..\functions\HealthGlobe.ahk"
 #Include "..\functions\ConditionSystem.ahk"
 

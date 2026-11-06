@@ -33,6 +33,11 @@ def check_includes(source: Path) -> int:
 def main() -> int:
     required = (
         "app/ahk/D4Box.ahk",
+        "app/ahk/config/cube-workflows.ini",
+        "app/ahk/functions/CubeProfiles.ahk",
+        "app/ahk/functions/CubeRunner.ahk",
+        "app/ahk/gui/CubeWorkflowGUI.ahk",
+        "app/ahk/tests/CubeWorkflowTest.ahk",
         "app/ahk/functions/WindowDiagnostics.ahk",
         "app/ahk/tests/SmokeTest.ahk",
         "app/ahk/tests/HealthGlobeTest.ahk",

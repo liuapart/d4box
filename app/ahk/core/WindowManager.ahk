@@ -20,6 +20,13 @@ CheckWindow() {
 OnWindowChange(isActive) {
     global isRunning, isPaused, previouslyPaused, statusText, statusBar
 
+    global D4Box_CubeBusy
+    if D4Box_CubeBusy {
+        if !isActive
+            D4Box_InterruptCube()
+        return
+    }
+
     if (!isActive) {  ; 窗口失去焦点
         if (isRunning) {
             previouslyPaused := isPaused
