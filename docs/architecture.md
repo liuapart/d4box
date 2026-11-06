@@ -39,3 +39,9 @@ scripts/start-windows.ps1
 跨分辨率定位先从客户区、DPI、面板参照位置入手；滚动搜索需要识别可见列表、检测页面变化、判定到底和超时。Mac 可用于离线样本分析，真实截图及输入仍须 Windows 验证。
 
 魔盒流程的完整模型与扩展入口见 [cube-workflows.md](cube-workflows.md)。
+
+## 独立编辑器提议（尚未实施）
+
+新的 [独立编辑器方案](standalone-editor-plan.md) 建议用 Qt Quick/QML 与小型 C++ 后端构建 Mac/Windows 编辑器，由版本化 JSON 文件交给现有 AHK 主程序。编辑器不执行游戏动作；主程序继续管理输入、热键、队列和 Debug，并增加 JSON 适配与编辑安全会话。
+
+该方案尚未改变本页的“当前结构”。现有 INI 配方、GUI 与单进程入口仍可按原方式使用；JSON 不能在未增加读取与执行适配的情况下直接交给当前代码运行。
