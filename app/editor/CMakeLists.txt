@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-set(D4BOX_RELEASE_VERSION "0.2.2" CACHE STRING "Editor release version (without tag prefix)")
+set(D4BOX_RELEASE_VERSION "0.2.3" CACHE STRING "Editor release version (without tag prefix)")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" D4BOX_NUMERIC_VERSION "${D4BOX_RELEASE_VERSION}")
 if(NOT D4BOX_NUMERIC_VERSION)
     message(FATAL_ERROR "D4BOX_RELEASE_VERSION must begin with X.Y.Z")
@@ -23,6 +23,8 @@ qt_add_executable(D4BoxEditor MACOSX_BUNDLE
     src/main.cpp src/EditorWindow.cpp src/EditorWindow.h
     src/EditorTheme.cpp src/EditorTheme.h
     src/WorkflowDocument.cpp src/WorkflowDocument.h
+    src/WindowChrome.cpp src/WindowChrome.h
+    src/PointNameDialog.cpp src/PointNameDialog.h
     src/WorkflowPanel.cpp src/WorkflowPanel.h
     src/OverlayLayer.cpp src/OverlayLayer.h
     src/NativeOverlay.cpp src/NativeOverlay.h)

@@ -49,6 +49,8 @@ class EditorWindow : public QMainWindow {
     void restoreControls();
     bool placeToolbar(bool avoidPoints = false);
     void selectPoint(const QString &id);
+    void renamePoint(const QString &id);
+    void showPointMenu(const QString &id, const QPoint &globalPosition);
     void invalidateReference();
     void showValidation();
     void updateViewIdentity(const QImage &background);

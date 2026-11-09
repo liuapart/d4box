@@ -43,6 +43,7 @@ signals:
     void editFinished();
     void pointActivated(const QString &);
     void pointEditRequested(const QString &);
+    void pointMenuRequested(const QString &, const QPoint &globalPosition);
     void restoreRequested();
     void screenChanged();
 

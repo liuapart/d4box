@@ -7,7 +7,7 @@
 
 1. 无参启动＝新建内存草稿；传目录＝按文件名选第一份合法配置；传文件＝精确打开，并可切换同目录配置。
 2. 默认覆盖选中显示器：全屏绘制窗完全穿透，点位、背包 4 条窄边框及 8 个手柄分别使用小型交互窗口。
-   **不是用一张透明大 QWidget 接管整个屏幕**；背包内部仍穿透。拖图标改位置，拖边框移动背包，拖 8 个柄缩放。
+   **不是用一张透明大 QWidget 接管整个屏幕**；背包内部仍穿透。拖图标改位置，拖边框移动背包，拖 8 个柄缩放。点位右键可改名或删除，双击仍可改名。
 3. 顶部工具栏可拖动；“编辑步骤”按需打开一个无边框圆角浮动面板；按住自定义标题区拖动，右上角关闭，右下角调整大小。关闭只隐藏，保留本次会话的编辑。
 4. 在步骤/点位/检查/布局页配置顺序与属性；保存后得到独立 JSON。退出或切换未保存配置时提示保存/放弃/继续。
 5. “预览”只显示点位、短名称与背包格线；格位的行列编号是静态辅助标记，**不是实时识别到的物品序号**。
@@ -26,6 +26,8 @@
 - 未完成的颜色/排除格输入留在内存并阻止非法保存，不悄悄丢掉。重复配置 UUID/损坏配置会在目录提示中报告。
 - 内置“自动嬗变”模板包含显式装入＋原 INI 的 13 步；旧坐标只作来源记录，实际点位/检查仍待标定。
 
+点位改名与步骤面板复用圆角无边框窗口组件。改名弹窗在点位所在屏幕的可用区域居中，标题可拖动；确定后才修改，取消 / Esc / 右上角关闭均放弃本次输入。删除受引用保护，成功删除和改名均可撤销。
+
 ### 快捷键与退出
 
 | 操作 | 快捷键 |
@@ -38,6 +40,40 @@
 全局热键使用 macOS Carbon / Windows RegisterHotKey；注册失败明确报告，隐藏模式 10 秒后自动返回。
 另提供托盘/菜单栏图标召回与退出，不要求辅助控制权限，也不使用屏幕捕获。
 “操作底层”暂时隐藏所有几何编辑控件，工具栏保留“返回编辑”。编辑器不会切换或操作游戏自身状态。
+
+## 本地开发入口
+
+在仓库根目录执行 `./dev.sh`；每次配置 CMake、增量编译、运行完整 CTest，全部成功后才前台启动。
+改完代码退出编辑器后重新运行即可，**不是文件监听或热重载**；不会关闭其他会话或丢弃未保存修改。
+
+```sh
+./dev.sh --demo
+./dev.sh --demo -- --template
+./dev.sh -- --background "/路径/游戏截图.png"
+./dev.sh -- ./workflows
+./dev.sh --build-only
+./dev.sh --build-type RelWithDebInfo --jobs 8
+./dev.sh --qt-prefix "/路径/Qt/6.11.3/macos"
+./dev.sh --help
+```
+
+- 默认 Debug、最多 4 个并行编译任务；也支持 RelWithDebInfo / MinSizeRel。
+- 构建目录为 `.runtime/editor/dev/<系统>-<架构>-<SDK路径摘要>/<构建类型>`，与发布构建隔离。这里只运行开发版，不打包。
+- SDK 优先级：`--qt-prefix` → `QT_PREFIX` → 仓库固定版本的 `.runtime/editor/qt-official` / `.runtime/editor/qt`。显式路径错误直接报错，不回退。需要 Qt Base + SVG。
+- 编辑器参数一律放在 `--` 后；相对配置/图片路径相对于调用时的终端目录，可从其他目录调用脚本绝对路径。
+- `--demo` 使用 `.runtime/editor/backgrounds/transmute-game-original.png`；缺失则报错，不下载。不能与 `--background`、`--overlay`、`validate` 同用。
+- `--build-only` 不接受底图或编辑器参数，避免静默忽略。构建/测试失败不启动界面。
+- 前台运行可直接看日志；正常退出请使用界面退出，以处理保存提示。不会自动提交、推送或修改发布包。
+
+macOS 首次安装 CMake/Ninja、Xcode Command Line Tools 后，可运行
+`python3 scripts/fetch_editor_qt_macos.py` 获取固定版本 SDK；开发脚本自身只使用已有 SDK。
+Windows 在 **VS 2022 x64 Developer PowerShell** 中用 Python 入口（需 Python 3.9+、CMake、Ninja 和匹配的 MSVC Qt SDK）：
+
+```powershell
+python scripts/dev_editor.py --qt-prefix 'C:\Qt\6.11.3\msvc2022_64' -- --template
+```
+
+Windows 构建命令生成有离线回归测试，启动入口仍需在 Windows 实机验证；不支持 Linux 覆盖层。
 
 ## 命令行
 

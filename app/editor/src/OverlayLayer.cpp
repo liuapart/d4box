@@ -4,6 +4,7 @@
 
 #include <QApplication>
 #include <QCursor>
+#include <QContextMenuEvent>
 #include <QFontMetrics>
 #include <QGuiApplication>
 #include <QHash>
@@ -76,7 +77,12 @@ public:
     std::function<void(QPainter &)> paint;
     std::function<void(const QPointF &)> press, move, release;
     std::function<void()> doubleClick;
+    std::function<void(const QPoint &)> contextMenu;
 protected:
+    void contextMenuEvent(QContextMenuEvent *event) override {
+        if (contextMenu) { contextMenu(event->globalPos()); event->accept(); }
+        else event->ignore();
+    }
     void paintEvent(QPaintEvent *) override {
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing);
@@ -227,6 +233,7 @@ public:
             widget->setGeometry(centered(position, pointDiameter));
             widget->setCursor(Qt::SizeAllCursor);
             widget->setAccessibleName(point.name);
+            widget->setToolTip(point.name + QStringLiteral(" · 拖动定位 · 双击改名 · 右键更多"));
             widget->paint = [this, widget, point](QPainter &p) {
                 paintPoint(p, QPointF(widget->width()/2.0, widget->height()/2.0), point.number, point.id == selected);
             };
@@ -284,6 +291,11 @@ public:
         widget->doubleClick = [this, point] {
             finishDrag();
             if (!point.isEmpty() && editingVisible && !readOnly) emit q->pointEditRequested(point);
+        };
+        if (!point.isEmpty()) widget->contextMenu = [this, point](const QPoint &global) {
+            finishDrag();
+            if (shown && drawingVisible && editingVisible && !readOnly)
+                emit q->pointMenuRequested(point, global);
         };
         return widget;
     }

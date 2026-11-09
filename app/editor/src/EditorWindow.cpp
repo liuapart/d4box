@@ -1,4 +1,5 @@
 #include "EditorWindow.h"
+#include "PointNameDialog.h"
 #include "EditorTheme.h"
 #include "NativeOverlay.h"
 #include "OverlayLayer.h"
@@ -16,6 +17,7 @@
 #include <QImageReader>
 #include <QInputDialog>
 #include <QJsonArray>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -355,18 +357,11 @@ EditorWindow::EditorWindow(WorkflowDocument input, QString folder, QImage image,
     });
     connect(overlay, &OverlayLayer::pointActivated, this,
             [this](const QString &id) { panel->showPoints(id); });
-    connect(overlay, &OverlayLayer::pointEditRequested, this, [this](const QString &id) {
-        QString current;
-        for (const auto &p : document.data.value(QStringLiteral("points")).toArray())
-            if (p.toObject().value(QStringLiteral("id")) == id)
-                current = p.toObject().value(QStringLiteral("name")).toString();
-        bool ok = false;
-        const auto text =
-            QInputDialog::getText(this, QStringLiteral("点位名称"), QStringLiteral("名称不改变点位 ID"),
-                                  QLineEdit::Normal, current, &ok);
-        if (ok)
-            mutate(QStringLiteral("重命名点位"), [this, id, text] { document.renamePoint(id, text); });
-    });
+    // Defer UI actions until the tiny overlay window's input handler returns.
+    connect(overlay, &OverlayLayer::pointEditRequested, this, &EditorWindow::renamePoint,
+            Qt::QueuedConnection);
+    connect(overlay, &OverlayLayer::pointMenuRequested, this, &EditorWindow::showPointMenu,
+            Qt::QueuedConnection);
     connect(overlay, &OverlayLayer::restoreRequested, this, [this] { restoreControls(); });
     connect(overlay, &OverlayLayer::screenChanged, this, [this] {
         if (!dragging) {
@@ -420,6 +415,52 @@ void EditorWindow::start() {
         status->setToolTip(shortcuts->error() +
                            QStringLiteral("\n全隐藏模式将在 10 秒后恢复，亦可从托盘召回。"));
 }
+void EditorWindow::renamePoint(const QString &id) {
+    if (preview || operate->isChecked() || QApplication::activeModalWidget()) return;
+    QString current;
+    bool found = false;
+    for (const auto &p : document.data.value(QStringLiteral("points")).toArray())
+        if (p.toObject().value(QStringLiteral("id")) == id) {
+            current = p.toObject().value(QStringLiteral("name")).toString();
+            found = true;
+            break;
+        }
+    if (!found) return;
+    PointNameDialog dialog(current, overlay->drawingWindow()->screen(), this);
+    if (dialog.exec() == QDialog::Accepted) {
+        const auto text = dialog.pointName();
+        mutate(QStringLiteral("重命名点位"), [this, id, text] { document.renamePoint(id, text); });
+    }
+}
+
+void EditorWindow::showPointMenu(const QString &id, const QPoint &globalPosition) {
+    if (preview || operate->isChecked() || QApplication::activeModalWidget()) return;
+    bool found = false;
+    for (const auto &p : document.data.value(QStringLiteral("points")).toArray())
+        found |= p.toObject().value(QStringLiteral("id")) == id;
+    if (!found) return;
+    overlay->selectPoint(id);
+    auto *menu = new QMenu(this);
+    menu->setObjectName(QStringLiteral("pointContextMenu"));
+    const auto documentId = document.data.value(QStringLiteral("id"));
+    auto *rename = menu->addAction(QStringLiteral("改名…"));
+    rename->setObjectName(QStringLiteral("renamePointAction"));
+    connect(rename, &QAction::triggered, this, [this, id, documentId] {
+        if (document.data.value(QStringLiteral("id")) == documentId) renamePoint(id);
+    }, Qt::QueuedConnection);
+    menu->addSeparator();
+    auto *remove = menu->addAction(QStringLiteral("删除点位"));
+    remove->setObjectName(QStringLiteral("deletePointAction"));
+    connect(remove, &QAction::triggered, this, [this, id, documentId] {
+        if (document.data.value(QStringLiteral("id")) != documentId || preview || operate->isChecked()) return;
+        QString error;
+        mutate(QStringLiteral("删除点位"), [this, id, &error] { document.removePoint(id, &error); });
+        if (!error.isEmpty()) QMessageBox::information(this, QStringLiteral("点位仍被使用"), error);
+    }, Qt::QueuedConnection);
+    connect(menu, &QMenu::aboutToHide, menu, &QObject::deleteLater);
+    menu->popup(globalPosition);
+}
+
 void EditorWindow::mutate(const QString &label, const std::function<void()> &edit) {
     const auto before = document.data;
     edit();
@@ -906,6 +947,8 @@ QJsonObject EditorWindow::selfTest() {
     if (add)
         add->menu()->actions().at(2)->trigger();
     auto *list = panel->findChild<QListWidget *>(QStringLiteral("stepsList"));
+    check(list->currentItem()->text().contains(QStringLiteral("等待 250 ms")),
+          QStringLiteral("wait summary describes duration rather than target"));
     auto *up = panel->findChild<QPushButton *>(QStringLiteral("stepUp"));
     const auto selected =
         list->currentItem() ? list->currentItem()->data(Qt::UserRole).toString() : QString{};
@@ -944,7 +987,58 @@ QJsonObject EditorWindow::selfTest() {
         QMetaObject::invokeMethod(actionBox, "activated", Qt::DirectConnection, Q_ARG(int, index));
         check(document.issues().isEmpty(),
               QStringLiteral("switch action %1 maintains valid schema").arg(index));
+        const QStringList labels{QStringLiteral("左键点击 →"), QStringLiteral("右键点击 →"),
+                                 QStringLiteral("等待"), QStringLiteral("状态检查 → 未选择检查规则")};
+        check(list->currentItem()->text().contains(labels.at(index)),
+              QStringLiteral("summary follows action %1 rather than stale step name").arg(index));
     }
+    auto *targetBox = panel->findChild<QComboBox *>(QStringLiteral("stepTarget"));
+    const int targetIndex = targetBox->findData(id);
+    check(targetIndex > 0, QStringLiteral("target picker contains added point"));
+    targetBox->setCurrentIndex(targetIndex);
+    QMetaObject::invokeMethod(targetBox, "activated", Qt::DirectConnection, Q_ARG(int, targetIndex));
+    const auto selectedStep = list->currentItem()->data(Qt::UserRole);
+    check(list->currentItem()->text().contains(QStringLiteral("右键点击 → Test point")),
+          QStringLiteral("target selection immediately updates step summary"));
+    mutate(QStringLiteral("test summary rename"), [this, id] {
+        document.renamePoint(id, QStringLiteral("执行按钮 <确认>"));
+    });
+    check(list->currentItem()->text().contains(QStringLiteral("执行按钮 <确认>")) &&
+              list->currentItem()->data(Qt::UserRole) == selectedStep,
+          QStringLiteral("point rename refreshes summary without losing selection"));
+    check(list->currentItem()->toolTip().contains(QStringLiteral("&lt;确认&gt;")) &&
+              list->currentItem()->data(Qt::AccessibleTextRole).toString() == list->currentItem()->text(),
+          QStringLiteral("summary tooltip escapes names and accessible text is complete"));
+    undo->undo();
+    check(list->currentItem()->text().contains(QStringLiteral("Test point")),
+          QStringLiteral("undo point rename refreshes summary"));
+    auto *stepNameField = panel->findChild<QLineEdit *>(QStringLiteral("stepName"));
+    stepNameField->setText(QStringLiteral("装入材料"));
+    QMetaObject::invokeMethod(stepNameField, "textEdited", Qt::DirectConnection,
+                              Q_ARG(QString, QStringLiteral("装入材料")));
+    check(list->currentItem()->text().contains(QStringLiteral("装入材料")) &&
+              list->currentItem()->text().contains(QStringLiteral("右键点击 → Test point")),
+          QStringLiteral("custom name supplements rather than hides action and target"));
+    targetBox->setCurrentIndex(0);
+    QMetaObject::invokeMethod(targetBox, "activated", Qt::DirectConnection, Q_ARG(int, 0));
+    check(list->currentItem()->text().contains(QStringLiteral("当前物品（动态位置）")),
+          QStringLiteral("dynamic item is explicitly labelled"));
+    // Invalid draft references must not masquerade as the dynamic item.
+    mutate(QStringLiteral("test broken reference"), [this, selectedStep] {
+        auto items = document.data.value(QStringLiteral("steps")).toArray();
+        for (qsizetype i = 0; i < items.size(); ++i) {
+            auto step = items[i].toObject();
+            if (step.value(QStringLiteral("id")).toString() != selectedStep.toString()) continue;
+            step.insert(QStringLiteral("target"), QJsonObject{
+                {QStringLiteral("type"), QStringLiteral("point")},
+                {QStringLiteral("pointId"), QStringLiteral("missing-point")}});
+            items[i] = step;
+        }
+        document.data.insert(QStringLiteral("steps"), items);
+    });
+    check(list->currentItem()->text().contains(QStringLiteral("目标点位已失效")),
+          QStringLiteral("broken point reference is explicit"));
+    undo->undo();
     auto *source = panel->findChild<QComboBox *>(QStringLiteral("sourceMode"));
     for (int index : {1, 2, 0}) {
         source->setCurrentIndex(index);
@@ -1017,6 +1111,77 @@ QJsonObject EditorWindow::selfTest() {
     undo->undo();
     check(pointName->text() == pointsBefore.at(1).toObject().value(QStringLiteral("name")).toString(),
           QStringLiteral("undo updates focused bound fields"));
+    // Modal rename uses shared chrome, never the toolbar-relative native dialog.
+    const auto beforeRename = document.data;
+    bool inspectedRename = false;
+    // Cocoa may process queued callbacks during native window creation.
+    // Inspect the settled window rather than interrupting show().
+    QTimer::singleShot(150, this, [&] {
+        auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        if (!dialog) return;
+        inspectedRename = true;
+        check(dialog->objectName() == QStringLiteral("pointNameDialog") &&
+                  dialog->windowFlags().testFlag(Qt::FramelessWindowHint),
+              QStringLiteral("rename uses frameless shared window chrome"));
+        const auto area = overlay->drawingWindow()->screen()->availableGeometry();
+        const QPoint expected(area.x() + (area.width() - dialog->width()) / 2,
+                              area.y() + (area.height() - dialog->height()) / 2);
+        check((dialog->pos() - expected).manhattanLength() <= 2,
+              QStringLiteral("rename centered on overlay screen not toolbar (%1,%2 expected %3,%4)")
+                  .arg(dialog->x()).arg(dialog->y()).arg(expected.x()).arg(expected.y()));
+        auto *input = dialog->findChild<QLineEdit *>(QStringLiteral("pointNameInput"));
+        auto *saveName = dialog->findChild<QPushButton *>(QStringLiteral("savePointName"));
+        check(input && saveName && input->selectedText() == input->text(),
+              QStringLiteral("rename preselects existing name"));
+        if (input && saveName) {
+            input->setText(QStringLiteral("   "));
+            check(!saveName->isEnabled(), QStringLiteral("rename rejects blank names"));
+            input->setText(QStringLiteral("  新的点位名称  "));
+            saveName->click();
+        } else dialog->reject();
+    });
+    renamePoint(id);
+    check(inspectedRename, QStringLiteral("rename dialog was presented"));
+    check(document.data != beforeRename, QStringLiteral("rename confirmation updates document"));
+    for (const auto &p : document.data.value(QStringLiteral("points")).toArray())
+        if (p.toObject().value(QStringLiteral("id")) == id)
+            check(p.toObject().value(QStringLiteral("name")) == QStringLiteral("新的点位名称"),
+                  QStringLiteral("rename trims name and preserves point ID"));
+    undo->undo();
+    check(document.data == beforeRename, QStringLiteral("dialog rename supports undo"));
+    for (const auto &button : {QStringLiteral("cancelPointName"), QStringLiteral("panelClose")}) {
+        QTimer::singleShot(0, this, [button] {
+            auto *dialog = QApplication::activeModalWidget();
+            if (!dialog) return;
+            dialog->findChild<QLineEdit *>(QStringLiteral("pointNameInput"))->setText(QStringLiteral("Discard me"));
+            dialog->findChild<QAbstractButton *>(button)->click();
+        });
+        renamePoint(id);
+        check(document.data == beforeRename, QStringLiteral("rename %1 discards input").arg(button));
+    }
+    QTimer::singleShot(0, this, [] {
+        if (auto *dialog = QApplication::activeModalWidget()) {
+            QKeyEvent escape(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+            QCoreApplication::sendEvent(dialog, &escape);
+        }
+    });
+    renamePoint(id);
+    check(document.data == beforeRename, QStringLiteral("Escape cancels rename"));
+    showPointMenu(id, overlay->drawingWindow()->geometry().center());
+    auto *pointMenu = findChild<QMenu *>(QStringLiteral("pointContextMenu"));
+    check(pointMenu && pointMenu->findChild<QAction *>(QStringLiteral("renamePointAction")) &&
+              pointMenu->findChild<QAction *>(QStringLiteral("deletePointAction")),
+          QStringLiteral("point context menu offers rename and delete"));
+    if (pointMenu) {
+        pointMenu->findChild<QAction *>(QStringLiteral("deletePointAction"))->trigger();
+        pointMenu->close();
+        qApp->processEvents();
+        check(document.data.value(QStringLiteral("points")).toArray().size() ==
+                  beforeRename.value(QStringLiteral("points")).toArray().size() - 1,
+              QStringLiteral("context menu deletes unused point"));
+        undo->undo();
+        check(document.data == beforeRename, QStringLiteral("context deletion undo restores point and position"));
+    }
     const auto beforeView = document.data;
     referenceCrop = QRectF(.05, .05, .9, .9);
     overlay->setReferenceRect(referenceCrop);

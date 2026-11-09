@@ -49,6 +49,24 @@ git diff --check
 
 Mac 上的检查覆盖仓库结构和 AHK 引用路径，不执行 Windows API，也不验证游戏交互。
 
+## 编辑器本地开发启动
+
+在仓库根目录运行（只构建独立 Qt 编辑器，不启动 AHK）：
+
+```sh
+./dev.sh                        # Debug 增量编译 → CTest → 透明覆盖编辑器
+./dev.sh --demo                 # 使用本机已保存的游戏底图
+./dev.sh --demo -- --template   # 带底图打开内置嬗变模板
+./dev.sh --build-only           # 编译和测试，不启动界面
+./dev.sh -- --background "/路径/游戏截图.png"
+./dev.sh -- ./workflows/example.d4workflow.json
+```
+
+首次需要 Xcode Command Line Tools、Python 3.9+、CMake/Ninja（`brew install cmake ninja`）和 Qt SDK。
+SDK 未安装时运行 `python3 scripts/fetch_editor_qt_macos.py`；启动脚本不会自动下载。
+`--demo` 使用本机忽略目录中的 `.runtime/editor/backgrounds/transmute-game-original.png`，图片不会随仓库分发。
+SDK 选择、参数及 Windows 入口见 [编辑器开发说明](app/editor/README.md#本地开发入口)。
+
 ## Windows 运行
 
 安装 AutoHotkey v2，在 PowerShell 中执行：

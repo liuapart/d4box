@@ -1,4 +1,5 @@
 #include "WorkflowPanel.h"
+#include "WindowChrome.h"
 #include "EditorTheme.h"
 
 #include <QAbstractItemModel>
@@ -53,7 +54,52 @@ void changeItem(WorkflowDocument *doc, const char *array, const QString &id, con
         return;
     }
 }
-void fillList(QListWidget *list, const QJsonArray &array, bool numbered = false) {
+QString stepSummary(const QJsonObject &step, const QJsonObject &doc, int index) {
+    const auto type = str(step, "action");
+    const int ms = step.value(QStringLiteral("minDelayMs")).toInt();
+    QString summary, detail;
+    if (type == QStringLiteral("click")) {
+        const auto target = step.value(QStringLiteral("target")).toObject();
+        QString targetName = QStringLiteral("未设置目标");
+        if (str(target, "type") == QStringLiteral("current_item"))
+            targetName = QStringLiteral("当前物品（动态位置）");
+        else if (str(target, "type") == QStringLiteral("point")) {
+            const auto point = itemFor(doc, "points", str(target, "pointId"));
+            targetName = point.isEmpty() ? QStringLiteral("目标点位已失效") : str(point, "name");
+            if (targetName.trimmed().isEmpty())
+                targetName = QStringLiteral("未命名点位");
+        }
+        const auto button = str(step, "button");
+        const auto actionName = button == QStringLiteral("left") ? QStringLiteral("左键点击")
+                              : button == QStringLiteral("right") ? QStringLiteral("右键点击")
+                              : QStringLiteral("未设置鼠标按键");
+        summary = actionName + QStringLiteral(" → ") + targetName;
+        detail = QStringLiteral("最短间隔 %1 ms").arg(ms);
+    } else if (type == QStringLiteral("wait")) {
+        summary = QStringLiteral("等待 %1 ms").arg(ms);
+        detail = QStringLiteral("不操作目标");
+    } else if (type == QStringLiteral("check")) {
+        const auto id = str(step, "checkId");
+        const auto rule = itemFor(doc, "checks", id);
+        QString name = id.isEmpty() ? QStringLiteral("未选择检查规则")
+                     : rule.isEmpty() ? QStringLiteral("检查规则已失效") : str(rule, "name");
+        if (name.trimmed().isEmpty())
+            name = QStringLiteral("未命名检查规则");
+        summary = QStringLiteral("状态检查 → ") + name;
+        detail = QStringLiteral("超时 %1 ms").arg(step.value(QStringLiteral("timeoutMs")).toInt());
+    } else {
+        summary = QStringLiteral("未知动作");
+    }
+    // Derive the action from data, never from the editable (possibly stale) name.
+    const auto name = str(step, "name").simplified();
+    const QStringList defaultNames{QStringLiteral("左键点击"), QStringLiteral("右键点击"),
+                                   QStringLiteral("点击"), QStringLiteral("等待"),
+                                   QStringLiteral("检查"), QStringLiteral("状态检查")};
+    if (!name.isEmpty() && !defaultNames.contains(name))
+        detail = name + QStringLiteral(" · ") + detail;
+    return QStringLiteral("%1  %2\n%3").arg(index + 1).arg(summary.simplified(), detail);
+}
+void fillList(QListWidget *list, const QJsonArray &array, const QJsonObject *doc = nullptr) {
     const QString selection =
         list->currentItem() ? list->currentItem()->data(Qt::UserRole).toString() : QString{};
     const int oldRow = list->currentRow();
@@ -63,12 +109,14 @@ void fillList(QListWidget *list, const QJsonArray &array, bool numbered = false)
     for (int i = 0; i < array.size(); ++i) {
         const auto o = array[i].toObject();
         QString label = str(o, "name");
-        if (numbered)
-            label = QStringLiteral("%1   %2   · %3 ms")
-                        .arg(i + 1)
-                        .arg(label)
-                        .arg(o.value(QStringLiteral("minDelayMs")).toInt());
+        if (doc)
+            label = stepSummary(o, *doc, i);
         auto *item = new QListWidgetItem(label, list);
+        if (doc) {
+            item->setToolTip(QStringLiteral("<qt>%1</qt>").arg(
+                label.toHtmlEscaped().replace(QLatin1Char('\n'), QStringLiteral("<br>"))));
+            item->setData(Qt::AccessibleTextRole, label);
+        }
         item->setData(Qt::UserRole, str(o, "id"));
         if (str(o, "id") == selection)
             selected = i;
@@ -132,40 +180,8 @@ WorkflowPanel::WorkflowPanel(WorkflowDocument *document, Mutation mutation, QWid
     setAttribute(Qt::WA_TranslucentBackground);
     setMinimumSize(400, 320);
     resize(438, 720);
-    auto *outer = new QVBoxLayout(this);
-    outer->setContentsMargins(0, 0, 0, 0);
-    auto *surface = new QFrame(this);
-    surface->setObjectName(QStringLiteral("panelSurface"));
-    outer->addWidget(surface);
-    auto *root = new QVBoxLayout(surface);
-    root->setContentsMargins(10, 8, 10, 8);
-    root->setSpacing(10);
-    titleBar = new QWidget(surface);
-    titleBar->setObjectName(QStringLiteral("panelTitleBar"));
-    titleBar->setCursor(Qt::SizeAllCursor);
-    titleBar->setToolTip(QStringLiteral("按住标题区域拖动面板"));
-    titleBar->installEventFilter(this);
-    auto *header = new QHBoxLayout(titleBar);
-    header->setContentsMargins(6, 0, 0, 0);
-    auto *title = new QLabel(QStringLiteral("流程编辑"), titleBar);
-    title->setProperty("role", QStringLiteral("heading"));
-    title->setAttribute(Qt::WA_TransparentForMouseEvents);
-    header->addWidget(title);
-    auto *hint = new QLabel(QStringLiteral("拖动此处移动"), titleBar);
-    hint->setProperty("role", QStringLiteral("hint"));
-    hint->setAttribute(Qt::WA_TransparentForMouseEvents);
-    header->addWidget(hint);
-    header->addStretch();
-    auto *close = new QToolButton(titleBar);
-    close->setObjectName(QStringLiteral("panelClose"));
-    close->setIcon(EditorTheme::icon(EditorTheme::Symbol::Close));
-    close->setAccessibleName(QStringLiteral("关闭步骤面板"));
-    close->setToolTip(QStringLiteral("关闭面板 · 保留当前编辑"));
-    close->setCursor(Qt::PointingHandCursor);
-    close->setFixedSize(32, 32);
-    header->addWidget(close);
-    connect(close, &QToolButton::clicked, this, &QWidget::hide);
-    root->addWidget(titleBar);
+    auto *chrome = new WindowChrome(this, QStringLiteral("流程编辑"));
+    auto *root = chrome->contentLayout();
     tabs = new QTabWidget(this);
     root->addWidget(tabs);
     buildSteps();
@@ -203,41 +219,6 @@ WorkflowPanel::WorkflowPanel(WorkflowDocument *document, Mutation mutation, QWid
     footer->addWidget(grip, 0, Qt::AlignBottom | Qt::AlignRight);
     root->addLayout(footer);
     refresh();
-}
-
-bool WorkflowPanel::eventFilter(QObject *watched, QEvent *event) {
-    if (watched != titleBar)
-        return QWidget::eventFilter(watched, event);
-    if (event->type() == QEvent::MouseButtonPress) {
-        auto *mouse = static_cast<QMouseEvent *>(event);
-        if (mouse->button() == Qt::LeftButton) {
-            movingPanel = true;
-            dragOffset = mouse->globalPosition().toPoint() - pos();
-            return true;
-        }
-    } else if (event->type() == QEvent::MouseMove && movingPanel) {
-        auto *mouse = static_cast<QMouseEvent *>(event);
-        if (!(mouse->buttons() & Qt::LeftButton)) {
-            movingPanel = false;
-            return false;
-        }
-        const auto global = mouse->globalPosition().toPoint();
-        auto next = global - dragOffset;
-        auto *targetScreen = QGuiApplication::screenAt(global);
-        if (!targetScreen) targetScreen = screen();
-        if (targetScreen) {
-            const auto available = targetScreen->availableGeometry();
-            // Keep the title and close control reachable, including on smaller displays.
-            next.setX(qBound(available.left(), next.x(), qMax(available.left(), available.right() - width() + 1)));
-            next.setY(qBound(available.top(), next.y(), qMax(available.top(), available.bottom() - titleBar->height() + 1)));
-        }
-        move(next);
-        return true;
-    } else if (event->type() == QEvent::MouseButtonRelease || event->type() == QEvent::Hide ||
-               event->type() == QEvent::UngrabMouse || event->type() == QEvent::WindowDeactivate) {
-        movingPanel = false;
-    }
-    return QWidget::eventFilter(watched, event);
 }
 
 void WorkflowPanel::buildSteps() {
@@ -310,6 +291,8 @@ void WorkflowPanel::buildSteps() {
     v->addLayout(row);
     steps = new QListWidget;
     steps->setObjectName(QStringLiteral("stepsList"));
+    steps->setTextElideMode(Qt::ElideRight);
+    steps->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     steps->setMinimumHeight(135);
     steps->setMaximumHeight(180);
     steps->setDragDropMode(QAbstractItemView::InternalMove);
@@ -332,6 +315,7 @@ void WorkflowPanel::buildSteps() {
     action->addItem(QStringLiteral("状态检查"), QStringLiteral("check"));
     form->addRow(QStringLiteral("动作"), action);
     target = new QComboBox;
+    target->setObjectName(QStringLiteral("stepTarget"));
     form->addRow(QStringLiteral("目标"), target);
     risk = new QComboBox;
     risk->addItem(QStringLiteral("消耗 / 修改物品（需状态转换检查）"), QStringLiteral("mutating"));
@@ -893,7 +877,7 @@ void WorkflowPanel::refresh() {
         excluded->setText(slotData.isString() ? slotData.toString() : s.join(QStringLiteral(", ")));
         excluded->setStyleSheet(slotData.isString() ? QStringLiteral("border:1px solid #C98282") : QString{});
     }
-    fillList(steps, doc->data.value(QStringLiteral("steps")).toArray(), true);
+    fillList(steps, doc->data.value(QStringLiteral("steps")).toArray(), &doc->data);
     fillList(points, doc->data.value(QStringLiteral("points")).toArray());
     fillList(checks, doc->data.value(QStringLiteral("checks")).toArray());
     fillRefs(completion, doc->data.value(QStringLiteral("checks")).toArray(),

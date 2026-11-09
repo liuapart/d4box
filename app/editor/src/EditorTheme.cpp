@@ -144,7 +144,7 @@ QToolBar#commandBar { background:#20323F; border:1px solid #435764; border-radiu
 QToolBar::separator { background:#3A4D59; width:1px; margin:8px 7px; }
 QLabel#brand { color:#71F4DE; font-size:14px; font-weight:700; padding:0 8px 0 2px; }
 QLabel#saveState { color:#C1D2DC; font-size:11px; padding:3px 5px; background:#2B3E4B; border-radius:5px; }
-QWidget#stepsPanel { background:transparent; }
+QWidget#stepsPanel, QDialog#pointNameDialog { background:transparent; }
 QFrame#panelSurface { background:#111A23; border:1px solid #435764; border-radius:12px; }
 QWidget#panelTitleBar { background:transparent; }
 QToolButton#panelClose { background:transparent; border:1px solid transparent; padding:0; }

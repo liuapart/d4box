@@ -3,6 +3,7 @@
 #include "WorkflowDocument.h"
 
 #include <QApplication>
+#include <QContextMenuEvent>
 #include <QGuiApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -94,7 +95,18 @@ int main(int argc, char **argv) {
         QObject::connect(&layer, &OverlayLayer::pointActivated, [&](const QString &) { ++activated; });
         QObject::connect(&layer, &OverlayLayer::pointEditRequested, [&](const QString &) { ++requested; });
         auto *p1 = find(layer, QStringLiteral("point:p1"));
+        int menus = 0;
+        QObject::connect(&layer, &OverlayLayer::pointMenuRequested, [&](const QString &id, const QPoint &pos) {
+            check(id == QStringLiteral("p1") && pos == p1->geometry().center(), "context menu carries point ID and global position");
+            ++menus;
+        });
+        auto contextMenu = [&] {
+            QContextMenuEvent event(QContextMenuEvent::Mouse, p1->rect().center(), p1->geometry().center());
+            QApplication::sendEvent(p1, &event);
+        };
         const auto original = document.data;
+        contextMenu();
+        check(menus == 1 && started == 0 && document.data == original, "right click requests menu without dragging or editing");
         mouse(p1, QEvent::MouseButtonPress, p1->geometry().center());
         mouse(p1, QEvent::MouseButtonRelease, p1->geometry().center());
         check(activated == 1 && started == 0 && finished == 0 && document.data == original, "click selects without history or mutation");
@@ -137,10 +149,14 @@ int main(int argc, char **argv) {
         check(layer.drawingWindow()->isVisible(), "readonly preserves drawing layer");
         check(layer.renderPreview() == layer.renderPreview(false), "readonly preview has no handles");
         const auto readOnlyData = document.data;
+        contextMenu();
+        check(menus == 1, "readonly suppresses point context menu");
         drag(p1, {100,100});
         check(document.data == readOnlyData, "readonly blocks mutations even from sent widget events");
         layer.setReadOnly(false);
         layer.setEditingVisible(false);
+        contextMenu();
+        check(menus == 1, "hidden editing controls suppress point context menu");
         check(layer.drawingWindow()->isVisible(), "editing off leaves drawing visible");
         for (auto *widget : layer.interactiveWindows()) check(!widget->isVisible(), "editing off hides controls");
         layer.setEditingVisible(true);
