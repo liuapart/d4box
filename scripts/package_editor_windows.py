@@ -37,6 +37,32 @@ QT_SVG_ARCHIVE = QT_ARCHIVE.replace('qtbase-', 'qtsvg-')
 QT_SVG_SHA256 = "e8c789e1a059601dd82114dd9560952891e7c8e94e1cb291166eb61d74800353"
 QT_SVG_URL = QT_ARCHIVE_URL.replace(QT_ARCHIVE, QT_SVG_ARCHIVE)
 
+# The editor uses raster Qt Widgets, local files and SVG images. It has no
+# QtNetwork or Direct3D 12 shader compilation path. Keep the normal import audit
+# and packaged runtime tests: these exclusions must fail closed if that changes.
+RASTER_EXCLUDED_LIBRARIES = frozenset({"qt6network.dll", "dxcompiler.dll", "dxil.dll"})
+RASTER_DEPLOY_OPTIONS = (
+    "--release", "--no-translations", "--no-plugins", "--no-compiler-runtime",
+    "--no-opengl-sw", "--no-system-d3d-compiler", "--no-system-dxc-compiler", "--no-network",
+)
+
+
+def validate_raster_dependencies(report: dict[str, list[str]]) -> None:
+    """Refuse both excluded payload files and direct/delay imports of them.
+
+    This is an explicit application policy, not a generic unused-DLL detector:
+    plugin and LoadLibrary dependencies cannot be inferred from imports alone.
+    """
+    for binary, imports in report.items():
+        names = {PureWindowsPath(binary).name.lower()}
+        names.update(PureWindowsPath(name).name.lower() for name in imports)
+        unexpected = names & RASTER_EXCLUDED_LIBRARIES
+        if unexpected:
+            raise RuntimeError(
+                f"Raster-only deployment contract changed in {binary}: {sorted(unexpected)}; "
+                "review deployment options and runtime tests before adding this dependency."
+            )
+
 
 def version_number(value: str) -> str:
     if not re.fullmatch(VERSION_RE, value):
@@ -273,8 +299,7 @@ def package(args: argparse.Namespace) -> None:
         payload.mkdir()
         shutil.copy2(source, payload / source.name)
         print("Deploying Qt Widgets/SVG and native Windows/JPEG/SVG plugins...", flush=True)
-        run(qt / "bin/windeployqt.exe", "--release", "--no-translations", "--no-plugins",
-            "--no-compiler-runtime", "--no-opengl-sw", "--no-system-d3d-compiler", payload / source.name)
+        run(qt / "bin/windeployqt.exe", *RASTER_DEPLOY_OPTIONS, payload / source.name)
         for relative in ("platforms/qwindows.dll", "imageformats/qjpeg.dll",
                          "imageformats/qsvg.dll", "iconengines/qsvgicon.dll"):
             destination = payload / relative
@@ -298,6 +323,7 @@ def package(args: argparse.Namespace) -> None:
             encoding="utf-8",
         )
         dependencies = audit_dependencies(payload, args.dumpbin)
+        validate_raster_dependencies(dependencies)
         runtime = test_runtime(payload, args.qt_version, args.version)
         print(run(sys.executable, ROOT / "scripts/check_editor_cli.py", payload / source.name,
                   env=clean_environment(), cwd=payload), flush=True)
@@ -336,8 +362,19 @@ def package(args: argparse.Namespace) -> None:
             "payload_bytes": sum(p.stat().st_size for p in payload.rglob("*") if p.is_file()),
             "installer_bytes": installer.stat().st_size if installer else None,
             "pe_dependency_audit": dependencies,
+            "deployment_policy": {
+                "rendering": "raster Qt Widgets with local files and SVG",
+                "excluded_optional_libraries": sorted(RASTER_EXCLUDED_LIBRARIES),
+                "windeployqt_options": list(RASTER_DEPLOY_OPTIONS),
+            },
+            "largest_files": [
+                {"path": str(p.relative_to(payload)), "bytes": p.stat().st_size}
+                for p in sorted((p for p in payload.rglob("*") if p.is_file()),
+                                key=lambda p: p.stat().st_size, reverse=True)[:15]
+            ],
             "checks": {"native_windows_smoke": True, "window_render": True,
                        "ui_interactions": True, "cli_regression": True, "svg_theme_multiscale": True,
+                       "raster_dependency_contract": True,
                        "sdk_free_plugin_search": True, "relocated_zip_smoke": True,
                        "installer_install_launch_uninstall": installer is not None},
             "limitations": ["Unsigned; no Windows SmartScreen reputation",
@@ -358,6 +395,18 @@ def self_test() -> None:
     from unittest import mock
 
     class GuardTests(unittest.TestCase):
+        def test_raster_dependency_contract(self):
+            validate_raster_dependencies({
+                "D4BoxEditor.exe": ["Qt6Widgets.dll", "Qt6Svg.dll"],
+                "Qt6Widgets.dll": ["Qt6Gui.dll", "Qt6Core.dll"],
+                "imageformats\\qsvg.dll": ["Qt6Svg.dll"],
+            })
+            for name in ("Qt6Network.dll", "dxcompiler.dll", "DXIL.DLL"):
+                with self.subTest(name=name), self.assertRaisesRegex(RuntimeError, "contract changed"):
+                    validate_raster_dependencies({"Qt6Gui.dll": [name]})
+                with self.subTest(payload=name), self.assertRaisesRegex(RuntimeError, "contract changed"):
+                    validate_raster_dependencies({"plugins\\" + name: ["Qt6Core.dll"]})
+
         def test_subprocess_failure_emits_both_streams_and_reraises(self):
             log = io.StringIO()
             with redirect_stderr(log), self.assertRaises(subprocess.CalledProcessError) as caught:

@@ -868,6 +868,35 @@ QJsonObject EditorWindow::selfTest() {
           QStringLiteral("redo point reference"));
     showSteps();
     check(panel->isVisible(), QStringLiteral("panel open"));
+    check(panel->windowFlags().testFlag(Qt::FramelessWindowHint),
+          QStringLiteral("panel has no native titlebar"));
+    auto *panelTitle = panel->findChild<QWidget *>(QStringLiteral("panelTitleBar"));
+    auto *panelClose = panel->findChild<QToolButton *>(QStringLiteral("panelClose"));
+    check(panelTitle && panelClose && panel->findChild<QWidget *>(QStringLiteral("panelSizeGrip")),
+          QStringLiteral("panel custom title close and resize controls"));
+    if (panelTitle) {
+        const auto originalPos = panel->pos();
+        const auto originalSize = panel->size();
+        const auto originalData = document.data;
+        const QPointF local(12, 12);
+        const QPointF global(panelTitle->mapToGlobal(local.toPoint()));
+        QMouseEvent press(QEvent::MouseButtonPress, local, global, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(panelTitle, &press);
+        QMouseEvent move(QEvent::MouseMove, local, global + QPointF(16, 12), Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(panelTitle, &move);
+        QMouseEvent release(QEvent::MouseButtonRelease, local, global + QPointF(16, 12), Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(panelTitle, &release);
+        check(panel->pos() == originalPos + QPoint(16, 12), QStringLiteral("panel title drag moves panel"));
+        const auto movedPos = panel->pos();
+        QMouseEvent hover(QEvent::MouseMove, local, global + QPointF(80, 80), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(panelTitle, &hover);
+        check(panel->pos() == movedPos, QStringLiteral("panel stops moving after release"));
+        panel->resize(originalSize + QSize(20, 20));
+        check(panel->size() == originalSize + QSize(20, 20), QStringLiteral("frameless panel remains resizable"));
+        check(document.data == originalData, QStringLiteral("panel movement and resize do not edit document"));
+        panel->move(originalPos);
+        panel->resize(originalSize);
+    }
     auto *add = panel->findChild<QPushButton *>(QStringLiteral("addStep"));
     const int before = document.data.value(QStringLiteral("steps")).toArray().size();
     if (add && add->menu() && !add->menu()->actions().isEmpty())
@@ -888,7 +917,8 @@ QJsonObject EditorWindow::selfTest() {
                   .toObject()
                   .value(QStringLiteral("id")) == selected,
           QStringLiteral("reorder step through UI"));
-    panel->hide();
+    if (panelClose) panelClose->click();
+    check(!panel->isVisible(), QStringLiteral("custom close hides panel"));
     showSteps();
     check(list->count() == before + 2, QStringLiteral("panel close retains steps"));
     mutate(QStringLiteral("test resize"), [this] { document.setInventoryRect(QRectF(.2, .3, .6, .2)); });

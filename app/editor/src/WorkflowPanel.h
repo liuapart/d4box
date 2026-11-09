@@ -28,6 +28,10 @@ class WorkflowPanel : public QWidget {
     std::function<void(const QRectF &)> cropChanged;
 
   private:
+    bool eventFilter(QObject *watched, QEvent *event) override;
+    QWidget *titleBar = nullptr;
+    bool movingPanel = false;
+    QPoint dragOffset;
     void buildSteps();
     void buildPoints();
     void buildChecks();

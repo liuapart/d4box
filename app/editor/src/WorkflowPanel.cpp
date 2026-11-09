@@ -1,10 +1,17 @@
 #include "WorkflowPanel.h"
+#include "EditorTheme.h"
 
 #include <QAbstractItemModel>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
+#include <QFrame>
+#include <QGuiApplication>
+#include <QMouseEvent>
+#include <QScreen>
+#include <QSizeGrip>
+#include <QToolButton>
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QJsonArray>
@@ -118,14 +125,47 @@ QDoubleSpinBox *fraction() {
 } // namespace
 
 WorkflowPanel::WorkflowPanel(WorkflowDocument *document, Mutation mutation, QWidget *parent)
-    : QWidget(parent, Qt::Tool | Qt::WindowStaysOnTopHint), doc(document), mutate(std::move(mutation)) {
+    : QWidget(parent, Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint), doc(document), mutate(std::move(mutation)) {
     setObjectName(QStringLiteral("stepsPanel"));
     setWindowTitle(QStringLiteral("D4Box · 流程编辑（不执行）"));
     setAttribute(Qt::WA_QuitOnClose, false);
+    setAttribute(Qt::WA_TranslucentBackground);
+    setMinimumSize(400, 320);
     resize(438, 720);
-    auto *root = new QVBoxLayout(this);
-    root->setContentsMargins(10, 4, 10, 10);
+    auto *outer = new QVBoxLayout(this);
+    outer->setContentsMargins(0, 0, 0, 0);
+    auto *surface = new QFrame(this);
+    surface->setObjectName(QStringLiteral("panelSurface"));
+    outer->addWidget(surface);
+    auto *root = new QVBoxLayout(surface);
+    root->setContentsMargins(10, 8, 10, 8);
     root->setSpacing(10);
+    titleBar = new QWidget(surface);
+    titleBar->setObjectName(QStringLiteral("panelTitleBar"));
+    titleBar->setCursor(Qt::SizeAllCursor);
+    titleBar->setToolTip(QStringLiteral("按住标题区域拖动面板"));
+    titleBar->installEventFilter(this);
+    auto *header = new QHBoxLayout(titleBar);
+    header->setContentsMargins(6, 0, 0, 0);
+    auto *title = new QLabel(QStringLiteral("流程编辑"), titleBar);
+    title->setProperty("role", QStringLiteral("heading"));
+    title->setAttribute(Qt::WA_TransparentForMouseEvents);
+    header->addWidget(title);
+    auto *hint = new QLabel(QStringLiteral("拖动此处移动"), titleBar);
+    hint->setProperty("role", QStringLiteral("hint"));
+    hint->setAttribute(Qt::WA_TransparentForMouseEvents);
+    header->addWidget(hint);
+    header->addStretch();
+    auto *close = new QToolButton(titleBar);
+    close->setObjectName(QStringLiteral("panelClose"));
+    close->setIcon(EditorTheme::icon(EditorTheme::Symbol::Close));
+    close->setAccessibleName(QStringLiteral("关闭步骤面板"));
+    close->setToolTip(QStringLiteral("关闭面板 · 保留当前编辑"));
+    close->setCursor(Qt::PointingHandCursor);
+    close->setFixedSize(32, 32);
+    header->addWidget(close);
+    connect(close, &QToolButton::clicked, this, &QWidget::hide);
+    root->addWidget(titleBar);
     tabs = new QTabWidget(this);
     root->addWidget(tabs);
     buildSteps();
@@ -151,10 +191,53 @@ WorkflowPanel::WorkflowPanel(WorkflowDocument *document, Mutation mutation, QWid
     validation->setWordWrap(true);
     validation->setContentsMargins(12, 4, 12, 4);
     root->addWidget(validation);
-    auto *close = new QPushButton(QStringLiteral("关闭面板 · 保留当前编辑"));
-    root->addWidget(close);
-    connect(close, &QPushButton::clicked, this, &QWidget::hide);
+    auto *footer = new QHBoxLayout;
+    auto *footerHint = new QLabel(QStringLiteral("仅编辑配置 · 关闭保留当前编辑"));
+    footerHint->setProperty("role", QStringLiteral("hint"));
+    footer->addWidget(footerHint);
+    footer->addStretch();
+    auto *grip = new QSizeGrip(this);
+    grip->setObjectName(QStringLiteral("panelSizeGrip"));
+    grip->setFixedSize(20, 20);
+    grip->setToolTip(QStringLiteral("拖动调整面板大小"));
+    footer->addWidget(grip, 0, Qt::AlignBottom | Qt::AlignRight);
+    root->addLayout(footer);
     refresh();
+}
+
+bool WorkflowPanel::eventFilter(QObject *watched, QEvent *event) {
+    if (watched != titleBar)
+        return QWidget::eventFilter(watched, event);
+    if (event->type() == QEvent::MouseButtonPress) {
+        auto *mouse = static_cast<QMouseEvent *>(event);
+        if (mouse->button() == Qt::LeftButton) {
+            movingPanel = true;
+            dragOffset = mouse->globalPosition().toPoint() - pos();
+            return true;
+        }
+    } else if (event->type() == QEvent::MouseMove && movingPanel) {
+        auto *mouse = static_cast<QMouseEvent *>(event);
+        if (!(mouse->buttons() & Qt::LeftButton)) {
+            movingPanel = false;
+            return false;
+        }
+        const auto global = mouse->globalPosition().toPoint();
+        auto next = global - dragOffset;
+        auto *targetScreen = QGuiApplication::screenAt(global);
+        if (!targetScreen) targetScreen = screen();
+        if (targetScreen) {
+            const auto available = targetScreen->availableGeometry();
+            // Keep the title and close control reachable, including on smaller displays.
+            next.setX(qBound(available.left(), next.x(), qMax(available.left(), available.right() - width() + 1)));
+            next.setY(qBound(available.top(), next.y(), qMax(available.top(), available.bottom() - titleBar->height() + 1)));
+        }
+        move(next);
+        return true;
+    } else if (event->type() == QEvent::MouseButtonRelease || event->type() == QEvent::Hide ||
+               event->type() == QEvent::UngrabMouse || event->type() == QEvent::WindowDeactivate) {
+        movingPanel = false;
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 void WorkflowPanel::buildSteps() {

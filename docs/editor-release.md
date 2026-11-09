@@ -88,12 +88,27 @@ macOS DMG 内是真实 `.app` 和 `/Applications` 快捷方式，不是空壳安
 Windows 报告包含 ZIP/安装器体积；macOS 报告来自原有完整 `.app` 测量，DMG 由后续步骤生成。
 
 Windows 通过 `windeployqt --no-compiler-runtime` 部署 Qt，明确复制
-`platforms/qwindows.dll` 和 JPEG 插件；CRT **只从** VS 的
+`platforms/qwindows.dll`、JPEG 和 SVG image/icon 插件；CRT **只从** VS 的
 `Redist/MSVC/.../x64/Microsoft.VC143.CRT` 目录复制。禁止从开发工具 `bin` 或 System32
 收集 CRT。这样 ZIP 不要求预装 Qt / VS / VC++ Runtime。该方式属于 Microsoft 文档中的
 app-local redistributable 部署；与系统集中安装相比，CRT 安全更新需要重新发布应用包。
 参见 [Microsoft 分发说明](https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files?view=msvc-170)
 和 [VS 2022 可分发文件列表](https://learn.microsoft.com/en-us/visualstudio/releases/2022/redistribution)。
+
+### Windows 纯 Widgets 部署范围
+
+当前编辑器只使用本地文件、栅格 Widgets 和 SVG，没有网络或 D3D12 着色器编译功能。
+打包器使用 Qt 官方 --no-network 和 --no-system-dxc-compiler 选项，
+不部署 Qt6Network.dll、dxcompiler.dll、dxil.dll。
+Core / Gui / Widgets / Svg、平台与图像插件、MSVC 运行库仍保留。
+
+导入审计后还会检查这三个库既不在包内，也不被任何保留的二进制直接或延迟导入；
+后续功能若引入依赖，构建失败并要求重新审视部署选项。
+这不是通用的 DLL 自动删除算法：动态插件与 LoadLibrary 路径必须单独检查。
+CI 仍在移除 SDK 搜索路径的环境中验证启动、SVG、渲染、UI、解压包与安装卸载。
+开发环境强制启用其他 Qt 渲染后端不在当前部署范围内。
+
+首次精简原生 Windows CI 通过前，体积减少仅按既有包的目录数据估算，不视为已验证发行包。
 
 ## 许可与来源材料
 

@@ -102,3 +102,32 @@ Qt 6.11.3 / macOS arm64 / MinSizeRel，含依赖与 Base/SVG 许可：
 
 ZIP 增加 286,991 B（约 0.29 MB），不是只比较 SVG 与 PNG 资源大小。报告位于忽略目录 .runtime/editor/verification/svg-package/size-report.json。
 这是本地包体测量，不代表已发布新版本或完成 Windows 实机验证。
+
+## 可选依赖精简分析（2026-11-09）
+
+从已发布的 editor-v0.2.1 Windows ZIP 中读取 208 项中央目录记录，
+文件大小总和与发布报告的 48,177,880 B 一致。以下是包内实际占用：
+
+| 可选库 | 未压缩 | ZIP 中压缩数据 |
+| --- | ---: | ---: |
+| dxcompiler.dll | 12,602,944 B | 5,721,893 B |
+| dxil.dll | 1,508,432 B | 687,952 B |
+| Qt6Network.dll | 1,754,936 B | 759,451 B |
+| 合计 | 15,866,312 B | 7,169,296 B |
+
+现有 PE 审计中，保留的二进制没有导入这三个库；当前程序也不使用
+网络、Qt Quick、OpenGL Widget 或 D3D12 着色器编译路径。
+部署规则已排除这三个可选库，并设置依赖检查，避免今后静默裁掉新增功能需要的库。
+
+保持其他文件不变时，payload 预计从 48.18 MB 降至 32.31 MB；
+ZIP 从 20.54 MB 降至约 13.37 MB，减少约 34.9%。
+ZIP 数值未计重打包产生的目录、压缩与文件版本差异，**不是新 Windows 构建的实测值**；
+不能据此推算 Inno 安装包体积。离线检查与 10 项打包器测试通过，原生验证待下次 CI。
+本地分析数据：.runtime/editor/verification/package-trim/trim-analysis.json。
+
+macOS 本地完整包当前约 25.36 MB / ZIP 10.40 MB。Core / Gui / Widgets 为主体，
+SVG 对应图标，QtDBus 是官方 QtGui 的硬链接依赖；当前不存在可以直接移除的 Qt framework。
+在所有 Mach-O 的临时副本上再次运行 strip -S -x，节省为 0 B。
+大幅缩小 Mac 包需要另建裁剪过功能的 Qt SDK（优先保持动态链接），
+重新验证平台窗口、输入法、字体、透明层、图像和插件。
+应用只调用少量 API 不会自动裁掉预编译动态库内部的其余实现；本次没有切换 Qt 构建方式。
