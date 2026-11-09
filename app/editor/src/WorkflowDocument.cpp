@@ -15,6 +15,7 @@
 #include <QUuid>
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <limits>
 
 namespace {
@@ -40,6 +41,33 @@ QString pathKey(const QString &path) {
     // symlink must use the same lock as its real path.
     const QString parent = info.dir().canonicalPath();
     return parent.isEmpty() ? QString{} : QDir(parent).absoluteFilePath(info.fileName());
+}
+std::filesystem::path nativePath(const QString &path) {
+#ifdef Q_OS_WIN
+    return std::filesystem::path(path.toStdWString());
+#else
+    return std::filesystem::path(QFile::encodeName(path).constData());
+#endif
+}
+enum class DestinationIdentity { Different, Loaded, Unavailable };
+DestinationIdentity loadedDestination(const QString &destination, const QString &loadedPath) {
+    if (destination == loadedPath) return DestinationIdentity::Loaded;
+    const QString currentLoadedPath = pathKey(loadedPath);
+    if (!currentLoadedPath.isEmpty() && destination == currentLoadedPath) return DestinationIdentity::Loaded;
+    // canonicalFilePath need not normalize casing on Windows. Do not simply
+    // lowercase: case-sensitive volumes/directories may hold both spellings.
+    const QString comparisonPath = currentLoadedPath.isEmpty() ? loadedPath : currentLoadedPath;
+    if (destination.compare(comparisonPath, Qt::CaseInsensitive) != 0) return DestinationIdentity::Different;
+    if (!QFileInfo::exists(destination) || !QFileInfo::exists(loadedPath)) {
+        // Identity can no longer be verified after deletion. Fail closed for
+        // a spelling-only Save As rather than recreating a deleted loaded file
+        // or overwriting another file with a stale document.
+        return DestinationIdentity::Loaded;
+    }
+    std::error_code error;
+    const bool equivalent = std::filesystem::equivalent(nativePath(destination), nativePath(loadedPath), error);
+    if (error) return DestinationIdentity::Unavailable;
+    return equivalent ? DestinationIdentity::Loaded : DestinationIdentity::Different;
 }
 bool fileHash(const QString &path, QByteArray *result, QString *error) {
     QFile file(path);
@@ -584,12 +612,15 @@ bool WorkflowDocument::saveDraft(const QString &path, QString *error, bool overw
     if (pathKey(path) != destination || QFileInfo(destination).isSymLink()) return fail(error, QStringLiteral("保存路径在加锁时发生变化，未覆盖。"));
     const QFileInfo target(destination);
     const bool existed = target.exists();
-    const bool sameLoadedFile = !loadedHash.isEmpty() && !filePath.isEmpty() && destination == filePath;
+    const auto identity = !loadedHash.isEmpty() && !filePath.isEmpty()
+        ? loadedDestination(destination, filePath) : DestinationIdentity::Different;
+    if (identity == DestinationIdentity::Unavailable) return fail(error, QStringLiteral("无法确认目标与已加载文件是否相同，未覆盖。"));
+    const bool sameLoadedFile = identity == DestinationIdentity::Loaded;
     if (existed && !target.isFile()) return fail(error, QStringLiteral("目标不是普通文件。"));
     if (existed && !sameLoadedFile && !overwrite) return fail(error, QStringLiteral("目标文件已存在，请确认覆盖或选择新文件名。"));
     QByteArray observedHash;
     if (existed && !fileHash(destination, &observedHash, error)) return false;
-    if (sameLoadedFile && (!existed || observedHash != loadedHash)) return fail(error, QStringLiteral("磁盘文件已被修改或删除，请重开或另存，未覆盖。"));
+    if (sameLoadedFile && (!existed || !QFileInfo::exists(filePath) || observedHash != loadedHash)) return fail(error, QStringLiteral("磁盘文件已被修改或删除，请重开或另存，未覆盖。"));
     if (existed && !target.isWritable()) return fail(error, QStringLiteral("目标文件只读，请另存为。"));
     QJsonObject next = data;
     next.insert(QStringLiteral("status"), QStringLiteral("draft"));

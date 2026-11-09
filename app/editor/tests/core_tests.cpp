@@ -464,10 +464,45 @@ void persistenceTests(Tests &t, const QString &root) {
         WorkflowDocument caseSession;
         t.check(caseSession.load(recovered, &error), "load case-insensitive file fixture");
         caseSession.setName("case alias save");
-        t.check(caseSession.saveDraft(caseAlias, &error), "case alias of loaded file does not require overwrite: " + error);
+        const bool savedAlias = caseSession.saveDraft(caseAlias, &error);
+        t.check(savedAlias, "case alias of loaded file does not require overwrite: " + error);
+        // Some platforms normalize casing in canonicalFilePath(), others retain
+        // the caller's spelling. Exercise the latter even on a normalizing host.
+        caseSession.filePath = caseAlias;
+        caseSession.setName("save with differently cased loaded spelling");
+        const bool savedSpelling = caseSession.saveDraft(recovered, &error);
+        t.check(savedSpelling, "loaded spelling alias identifies the same file: " + error);
+        const auto lockedState = caseSession.data;
+        {
+            QLockFile lock(recovered + ".lock");
+            t.check(lock.tryLock(), "lock lowercase path before alias save");
+            t.check(!caseSession.saveDraft(caseAlias, &error) && caseSession.data == lockedState,
+                    "case alias cannot evade the existing save lock");
+        }
         auto changed = caseSession.data; changed.insert("name", "external case edit"); t.write(recovered, changed);
+        caseSession.filePath = caseAlias;
         const auto pending = caseSession.data;
         t.check(!caseSession.saveDraft(recovered, &error, true) && caseSession.data == pending, "case alias must not bypass loaded-file conflict with overwrite flag");
+        t.check(t.read(recovered) == QJsonDocument(changed).toJson(), "alias conflict preserves external bytes");
+        t.check(caseSession.load(recovered, &error), "reload before alias deletion test");
+        caseSession.filePath = caseAlias;
+        caseSession.setName("pending after alias deletion");
+        const auto beforeDeletion = caseSession.data;
+        t.check(QFile::remove(recovered), "delete case-insensitive fixture externally");
+        t.check(!caseSession.saveDraft(recovered, &error, true) && caseSession.data == beforeDeletion
+                    && caseSession.dirty && !QFileInfo::exists(recovered),
+                "case alias cannot recreate an externally deleted loaded file");
+    } else {
+        // Case-sensitive APFS/Linux/NTFS directories can contain BOTH spellings.
+        auto distinct = WorkflowDocument::createDraft();
+        t.check(distinct.saveDraft(caseAlias, &error), "create distinct uppercase file");
+        WorkflowDocument caseSession;
+        t.check(caseSession.load(recovered, &error), "load distinct lowercase file");
+        const auto originalBytes = t.read(recovered), otherBytes = t.read(caseAlias);
+        t.check(!caseSession.saveDraft(caseAlias, &error), "distinct case-sensitive file still requires overwrite confirmation");
+        t.check(t.read(recovered) == originalBytes && t.read(caseAlias) == otherBytes,
+                "case-sensitive overwrite refusal preserves both files");
+        t.check(caseSession.saveDraft(caseAlias, &error, true), "explicit overwrite allows distinct case-sensitive file");
     }
 }
 
