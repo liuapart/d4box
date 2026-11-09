@@ -129,6 +129,10 @@ actionlint .github/workflows/editor-release.yml
 
 Windows helper 的离线测试覆盖 tag/数字版本约束、PE 架构与截断输入、SDK 路径越界/链接、许可缺失、
 Inno 模板安全约束；不能代替 Windows 原生验证。
+MSVC 环境通过 Visual Studio 自带的 Launch-VsDevShell.ps1 初始化，避免路径含空格时
+PowerShell / cmd 多层引号破坏命令。打包子进程失败或超时会输出有长度限制的 stdout/stderr，
+并保留失败状态。macOS job 失败后会对构建目录和部署目录的原生冒烟启动采集 LLDB 堆栈，
+将日志与本次 CI 的编辑器崩溃报告保存为 editor-diagnostics-macos-* artifact；诊断不替代发布门禁。
 在 VS x64 开发环境、官方 Qt SDK 和 prepare job 相同的许可证目录已备妥后，
 调用 `python scripts/package_editor_windows.py --help` 查看参数；给出 `--iscc` 才生成安装器。
 CI 强制提供 `--iscc`，找不到 Inno Setup 或安装失败就阻止发行，不降级为空壳文件。

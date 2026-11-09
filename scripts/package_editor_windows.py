@@ -24,6 +24,7 @@ import urllib.request
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+FAILURE_OUTPUT_LIMIT = 16_384  # Characters per stream; retain both the start and end.
 VERSION_RE = r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?"
 QT_ARCHIVE = "6.11.1-0-202605090529qtbase-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z"
 QT_ARCHIVE_SHA256 = "7f97edc3937fec7383eb865e010ed5128155bf9c80a563abca450860f3e9bef5"
@@ -43,10 +44,25 @@ def version_number(value: str) -> str:
 
 
 def run(*args: object, env: dict | None = None, cwd: Path | None = None) -> str:
-    result = subprocess.run(
-        [str(arg) for arg in args], check=True, capture_output=True,
-        text=True, encoding="utf-8", errors="replace", env=env, cwd=cwd, timeout=300,
-    )
+    try:
+        result = subprocess.run(
+            [str(arg) for arg in args], check=True, capture_output=True,
+            text=True, encoding="utf-8", errors="replace", env=env, cwd=cwd, timeout=300,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+        print(f"{type(error).__name__}: {error}", file=sys.stderr, flush=True)
+        for name, output in (("stdout", error.stdout), ("stderr", error.stderr)):
+            # TimeoutExpired can retain bytes even when text=True was requested.
+            if isinstance(output, bytes):
+                output = output.decode("utf-8", errors="replace")
+            output = output or ""
+            if len(output) > FAILURE_OUTPUT_LIMIT:
+                omitted = len(output) - FAILURE_OUTPUT_LIMIT
+                half = FAILURE_OUTPUT_LIMIT // 2
+                output = (output[:half] + f"\n... [{omitted} characters omitted] ...\n"
+                          + output[-half:])
+            print(f"--- subprocess {name} ---\n{output or '<empty>'}", file=sys.stderr, flush=True)
+        raise
     if result.stderr.strip():
         print(result.stderr, flush=True)
     return result.stdout
@@ -323,9 +339,68 @@ def package(args: argparse.Namespace) -> None:
 
 def self_test() -> None:
     """Offline guard tests; these do not claim native Windows deployment works."""
+    from contextlib import redirect_stderr, redirect_stdout
+    import io
     import unittest
+    from unittest import mock
 
     class GuardTests(unittest.TestCase):
+        def test_subprocess_failure_emits_both_streams_and_reraises(self):
+            log = io.StringIO()
+            with redirect_stderr(log), self.assertRaises(subprocess.CalledProcessError) as caught:
+                run(sys.executable, "-c",
+                    "import sys; print('stdout-marker', flush=True); "
+                    "print('stderr-marker', file=sys.stderr, flush=True); sys.exit(23)")
+            self.assertEqual(caught.exception.returncode, 23)
+            self.assertEqual(caught.exception.stdout.strip(), "stdout-marker")
+            self.assertEqual(caught.exception.stderr.strip(), "stderr-marker")
+            self.assertIn("--- subprocess stdout ---\nstdout-marker", log.getvalue())
+            self.assertIn("--- subprocess stderr ---\nstderr-marker", log.getvalue())
+
+        def test_subprocess_timeout_emits_partial_bytes_and_reraises(self):
+            real_run = subprocess.run
+
+            def short_timeout(*args, **kwargs):
+                # Exercise real OS pipes and TimeoutExpired, without the production 300s wait.
+                kwargs["timeout"] = 2
+                return real_run(*args, **kwargs)
+
+            log = io.StringIO()
+            with mock.patch("subprocess.run", side_effect=short_timeout), redirect_stderr(log):
+                with self.assertRaises(subprocess.TimeoutExpired) as caught:
+                    run(sys.executable, "-c",
+                        "import sys,time; print('timeout-stdout', flush=True); "
+                        "sys.stderr.buffer.write(bytes([0xe4, 0xb8, 0xad, 0xff])); "
+                        "sys.stderr.flush(); time.sleep(30)")
+            self.assertEqual(caught.exception.timeout, 2)
+            self.assertIn("--- subprocess stdout ---\ntimeout-stdout", log.getvalue())
+            self.assertIn("--- subprocess stderr ---\n中\ufffd", log.getvalue())
+
+        def test_subprocess_failure_log_is_bounded(self):
+            log = io.StringIO()
+            code = ("import sys; "
+                    f"print('OUT-HEAD' + 'x' * {FAILURE_OUTPUT_LIMIT * 2} + 'OUT-TAIL'); "
+                    f"print('ERR-HEAD' + 'y' * {FAILURE_OUTPUT_LIMIT * 2} + 'ERR-TAIL', file=sys.stderr); "
+                    "sys.exit(9)")
+            with redirect_stderr(log), self.assertRaises(subprocess.CalledProcessError) as caught:
+                run(sys.executable, "-c", code)
+            self.assertEqual(caught.exception.returncode, 9)
+            self.assertGreater(len(caught.exception.stdout), FAILURE_OUTPUT_LIMIT)
+            text = log.getvalue()
+            for marker in ("OUT-HEAD", "OUT-TAIL", "ERR-HEAD", "ERR-TAIL"):
+                self.assertIn(marker, text)
+            self.assertEqual(text.count("characters omitted"), 2)
+            self.assertLess(len(text), 2 * FAILURE_OUTPUT_LIMIT + 1024)
+
+        def test_subprocess_success_keeps_existing_behavior(self):
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                result = run(sys.executable, "-c",
+                             "import sys; print('success'); print('warning', file=sys.stderr)")
+            self.assertEqual(result.strip(), "success")
+            self.assertEqual(stdout.getvalue().strip(), "warning")
+            self.assertEqual(stderr.getvalue(), "")
+
         def test_versions(self):
             self.assertEqual(version_number("1.2.3-rc.1"), "1.2.3.0")
             for bad in ("editor-v1.0.0", "01.2.3", "1.2", "1.2.3\n", "1.2.3;echo", "65536.0.0"):

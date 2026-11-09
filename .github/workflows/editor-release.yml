@@ -214,6 +214,17 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 7
+      - name: Collect native startup crash diagnostics
+        if: failure()
+        run: |
+          python scripts/diagnose_editor_macos.py --build-dir .runtime/editor/build --package-dir .runtime/editor/dist-macos --output-dir .runtime/editor/diagnostics
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: failure()
+        with:
+          name: editor-diagnostics-macos-${{ matrix.asset_arch }}
+          path: .runtime/editor/diagnostics/
+          if-no-files-found: warn
+          retention-days: 7
 
   windows:
     name: Windows x64 MSVC 2022
@@ -244,15 +255,20 @@ jobs:
           if (!$vs) { throw 'Visual Studio 2022 C++ tools not found' }
           $before = @{}
           Get-ChildItem Env: | ForEach-Object { $before[$_.Name] = $_.Value }
-          $vars = & cmd.exe /s /c "`"`"$vs\VC\Auxiliary\Build\vcvars64.bat`" >nul && set`""
-          if ($LASTEXITCODE -ne 0) { throw 'vcvars64 failed' }
-          foreach ($line in $vars) {
-            if ($line -match '^([^=]+)=(.*)$') {
-              $name, $value = $Matches[1], $Matches[2]
-              if ($name -notmatch '^(GITHUB_|RUNNER_|ACTIONS_|NODE_OPTIONS$)' -and
-                  (!$before.ContainsKey($name) -or $before[$name] -cne $value)) {
-                "$name=$value" >> $env:GITHUB_ENV
-              }
+          # PowerShell invokes the official script directly, so spaces in Program Files
+          # never pass through cmd.exe's /s /c quoting rules.
+          $devShell = Join-Path $vs 'Common7/Tools/Launch-VsDevShell.ps1'
+          if (!(Test-Path $devShell)) { throw 'Visual Studio Developer PowerShell script not found' }
+          & $devShell -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
+          if ($env:VSCMD_ARG_TGT_ARCH -notin @('x64', 'amd64')) {
+            throw 'Visual Studio did not initialize an x64 target environment'
+          }
+          Get-Command cl.exe, link.exe, dumpbin.exe -ErrorAction Stop | Format-Table Name, Source
+          Get-ChildItem Env: | ForEach-Object {
+            $name, $value = $_.Name, $_.Value
+            if ($name -notmatch '^(GITHUB_|RUNNER_|ACTIONS_|NODE_OPTIONS$)' -and
+                (!$before.ContainsKey($name) -or $before[$name] -cne $value)) {
+              "$name=$value" >> $env:GITHUB_ENV
             }
           }
       - name: Install official Qt Base MSVC SDK
