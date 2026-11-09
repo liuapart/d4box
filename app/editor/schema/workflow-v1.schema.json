@@ -1,0 +1,643 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:d4box:workflow:v1",
+  "title": "D4Box workflow draft v1",
+  "$comment": "WorkflowDocument::validate is authoritative for semantic checks: finite numbers, unique collection IDs, references including nested extensions, complete layout mappings and rectangle extents. forRun additionally requires manual references, populated positions/checks/steps, present entry checks, transition results on mutating clicks and supported capabilities; it is not execution or game verification. saveDraft always persists status=draft. Unknown fields are retained, not silently discarded.",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "const": "d4box.workflow"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+      "not": {
+        "const": "00000000-0000-0000-0000-000000000000"
+      },
+      "minLength": 36,
+      "maxLength": 36
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2147483647
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "description": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "ready"
+      ]
+    },
+    "requires": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/identifier"
+      },
+      "uniqueItems": true,
+      "description": "Unknown requirements are preserved in drafts but rejected by forRun. forRun also requires declared capabilities derived from source, actions, pixel checks and original-quality conditions. refreshRequirements appends missing known declarations without pruning extensions."
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "points": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/point"
+      },
+      "maxItems": 256
+    },
+    "layouts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/layout"
+      },
+      "minItems": 1,
+      "maxItems": 32
+    },
+    "defaultLayoutId": {
+      "$ref": "#/$defs/identifier"
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/check"
+      },
+      "maxItems": 256
+    },
+    "entryCheckId": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/identifier"
+        }
+      ]
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/step"
+      },
+      "maxItems": 100
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "maxItemsPerRun": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 33
+        },
+        "totalTimeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 1800000
+        }
+      },
+      "required": [
+        "maxItemsPerRun",
+        "totalTimeoutMs"
+      ],
+      "additionalProperties": true
+    },
+    "provenance": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "kind",
+    "schemaVersion",
+    "id",
+    "revision",
+    "name",
+    "description",
+    "status",
+    "requires",
+    "source",
+    "points",
+    "layouts",
+    "defaultLayoutId",
+    "checks",
+    "steps",
+    "limits"
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[^\\s\\x00-\\x1f\\x7f]+$",
+      "not": {
+        "pattern": "[\\s\\x00-\\x1f\\x7f]"
+      }
+    },
+    "qualities": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "red",
+          "yellow",
+          "blue",
+          "dark",
+          "unknown"
+        ]
+      },
+      "uniqueItems": true,
+      "description": "Empty or absent means all originally observed qualities; never the upgraded item color."
+    },
+    "position": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "additionalProperties": true
+    },
+    "rect": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "width",
+        "height"
+      ],
+      "additionalProperties": true,
+      "description": "Semantic validation additionally requires x+width<=1 and y+height<=1."
+    },
+    "inventory": {
+      "type": "object",
+      "properties": {
+        "rows": {
+          "const": 3
+        },
+        "columns": {
+          "const": 11
+        },
+        "rect": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/rect"
+            }
+          ]
+        }
+      },
+      "required": [
+        "rows",
+        "columns",
+        "rect"
+      ],
+      "additionalProperties": true
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "hover_item",
+            "inventory_once",
+            "preloaded"
+          ]
+        },
+        "maxItems": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 33
+        },
+        "originalQualities": {
+          "$ref": "#/$defs/qualities"
+        },
+        "excludedSlots": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 32
+          },
+          "uniqueItems": true,
+          "maxItems": 33,
+          "description": "0-based slots in a 3x11 inventory."
+        }
+      },
+      "required": [
+        "mode",
+        "maxItems"
+      ],
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "enum": [
+                  "hover_item",
+                  "preloaded"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "maxItems": {
+                "const": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "point": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "role": {
+          "enum": [
+            "click",
+            "check",
+            "both"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "role"
+      ],
+      "additionalProperties": true
+    },
+    "layout": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "coordinateSpace": {
+          "const": "client_normalized"
+        },
+        "calibration": {
+          "enum": [
+            null,
+            "unverified",
+            "manual"
+          ]
+        },
+        "referenceClientPx": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "width": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535
+                },
+                "height": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535
+                }
+              },
+              "required": [
+                "width",
+                "height"
+              ],
+              "additionalProperties": true
+            }
+          ]
+        },
+        "inventory": {
+          "$ref": "#/$defs/inventory"
+        },
+        "pointPositions": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/$defs/position"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "coordinateSpace",
+        "calibration",
+        "referenceClientPx",
+        "inventory",
+        "pointPositions"
+      ],
+      "additionalProperties": true,
+      "description": "manual means user-confirmed reference geometry, not Windows/game verification. IDs and missing positions are checked semantically."
+    },
+    "check": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "type": {
+          "const": "pixel"
+        },
+        "pointId": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/identifier"
+            }
+          ]
+        },
+        "expectedColor": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "minLength": 7,
+              "maxLength": 7
+            }
+          ]
+        },
+        "tolerance": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "stableSamples": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "mode": {
+          "enum": [
+            "present",
+            "transition"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "type",
+        "pointId",
+        "expectedColor",
+        "tolerance",
+        "stableSamples",
+        "mode"
+      ],
+      "additionalProperties": true
+    },
+    "target": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "point"
+            },
+            "pointId": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/identifier"
+                }
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "pointId"
+          ],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "current_item"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": true,
+          "not": {
+            "required": [
+              "pointId"
+            ]
+          }
+        }
+      ]
+    },
+    "step": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S"
+        },
+        "action": {
+          "enum": [
+            "click",
+            "wait",
+            "check"
+          ]
+        },
+        "originalQualities": {
+          "$ref": "#/$defs/qualities"
+        },
+        "button": {
+          "enum": [
+            "left",
+            "right"
+          ]
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/target"
+            }
+          ]
+        },
+        "minDelayMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 30000
+        },
+        "completionCheckId": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/identifier"
+            }
+          ]
+        },
+        "checkId": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/identifier"
+            }
+          ]
+        },
+        "risk": {
+          "enum": [
+            "none",
+            "mutating"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "action"
+      ],
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "click"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "button",
+              "target",
+              "minDelayMs",
+              "timeoutMs",
+              "completionCheckId",
+              "risk"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "wait"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "minDelayMs"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "check"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "checkId",
+              "timeoutMs"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

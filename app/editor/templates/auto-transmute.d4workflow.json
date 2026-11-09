@@ -1,0 +1,480 @@
+{
+    "checks": [
+    ],
+    "defaultLayoutId": "default",
+    "description": "迁入内置背包嬗变的红/黄品质分支与延时；默认仅红色，黄色分支可选。旧坐标为全屏参考，不是客户区校准。入口与结果检查均待填写；不执行游戏操作。",
+    "entryCheckId": null,
+    "id": "66cdd147-5e6b-4e4f-a7b4-59daf08d3c19",
+    "kind": "d4box.workflow",
+    "layouts": [
+        {
+            "calibration": "unverified",
+            "coordinateSpace": "client_normalized",
+            "id": "default",
+            "inventory": {
+                "columns": 11,
+                "rect": null,
+                "rows": 3
+            },
+            "name": "待校准布局",
+            "pointPositions": {
+                "affix": null,
+                "clear": null,
+                "confirm": null,
+                "execute": null,
+                "transmute_red": null,
+                "transmute_yellow": null,
+                "upgrade": null
+            },
+            "referenceClientPx": null
+        }
+    ],
+    "limits": {
+        "maxItemsPerRun": 33,
+        "totalTimeoutMs": 300000
+    },
+    "name": "自动嬗变 · 待校准草稿",
+    "points": [
+        {
+            "id": "transmute_red",
+            "name": "transmute",
+            "role": "click"
+        },
+        {
+            "id": "execute",
+            "name": "execute",
+            "role": "click"
+        },
+        {
+            "id": "confirm",
+            "name": "confirm",
+            "role": "click"
+        },
+        {
+            "id": "affix",
+            "name": "affix",
+            "role": "click"
+        },
+        {
+            "id": "upgrade",
+            "name": "upgrade",
+            "role": "click"
+        },
+        {
+            "id": "transmute_yellow",
+            "name": "transmute",
+            "role": "click"
+        },
+        {
+            "id": "clear",
+            "name": "clear",
+            "role": "click"
+        }
+    ],
+    "provenance": {
+        "legacyCoordinateSpace": "screen",
+        "legacySteps": [
+            {
+                "action": "select",
+                "color": "-",
+                "delayMs": 180,
+                "label": "transmute",
+                "quality": "red",
+                "timeoutMs": 3000,
+                "tolerance": 24,
+                "x": 0.445,
+                "y": 0.38
+            },
+            {
+                "action": "execute",
+                "color": "-",
+                "delayMs": 450,
+                "label": "execute",
+                "quality": "red",
+                "timeoutMs": 3000,
+                "tolerance": 24,
+                "x": 0.168,
+                "y": 0.793
+            },
+            {
+                "action": "confirm",
+                "color": "-",
+                "delayMs": 1000,
+                "label": "confirm",
+                "quality": "red",
+                "timeoutMs": 3000,
+                "tolerance": 24,
+                "x": 0.432,
+                "y": 0.56
+            },
+            {
+                "action": "select",
+                "color": "-",
+                "delayMs": 180,
+                "label": "affix",
+                "quality": "yellow",
+                "timeoutMs": 3000,
+                "tolerance": 24,
+                "x": 0.445,
+                "y": 0.233
+            },
+            {
+                "action": "execute",
+                "color": "-",
+                "delayMs": 450,
+                "label": "execute",
+                "quality": "yellow",
+                "timeoutMs": 3000,
+                "tolerance": 24,
+                "x": 0.168,
+                "y": 0.793
+            },
+            {
+                "action": "confirm",
+                "color": "-",
+                "delayMs": 1000,
+                "label": "confirm",
+                "quality": "yellow",
+                "timeoutMs": 3000,
+                "tolerance": 24,
+                "x": 0.432,
+                "y": 0.56
+            },
+            {
+                "action": "select",
+                "color": "-",
+                "delayMs": 180,
+                "label": "upgrade",
+                "quality": "yellow",
+                "timeoutMs": 3000,
+                "tolerance": 24,
+                "x": 0.445,
+                "y": 0.72
+            },
+            {
+                "action": "execute",
+                "color": "-",
+                "delayMs": 450,
+                "label": "execute",
+                "quality": "yellow",
+                "timeoutMs": 3000,
+                "tolerance": 24,
+                "x": 0.168,
+                "y": 0.793
+            },
+            {
+                "action": "confirm",
+                "color": "-",
+                "delayMs": 1000,
+                "label": "confirm",
+                "quality": "yellow",
+                "timeoutMs": 3000,
+                "tolerance": 24,
+                "x": 0.432,
+                "y": 0.56
+            },
+            {
+                "action": "select",
+                "color": "-",
+                "delayMs": 180,
+                "label": "transmute",
+                "quality": "yellow",
+                "timeoutMs": 3000,
+                "tolerance": 24,
+                "x": 0.445,
+                "y": 0.35
+            },
+            {
+                "action": "execute",
+                "color": "-",
+                "delayMs": 450,
+                "label": "execute",
+                "quality": "yellow",
+                "timeoutMs": 3000,
+                "tolerance": 24,
+                "x": 0.168,
+                "y": 0.793
+            },
+            {
+                "action": "confirm",
+                "color": "-",
+                "delayMs": 1000,
+                "label": "confirm",
+                "quality": "yellow",
+                "timeoutMs": 3000,
+                "tolerance": 24,
+                "x": 0.432,
+                "y": 0.56
+            },
+            {
+                "action": "clear",
+                "color": "-",
+                "delayMs": 350,
+                "label": "clear",
+                "quality": "any",
+                "timeoutMs": 3000,
+                "tolerance": 24,
+                "x": 0.168,
+                "y": 0.68
+            }
+        ],
+        "legacyYellow": true,
+        "loadSource": "app/ahk/functions/CubeRunner.ahk: explicit right click + 250 ms",
+        "source": "app/ahk/config/cube-workflows.ini",
+        "workflowId": "inventory_transmute"
+    },
+    "requires": [
+        "mouse.click.v1",
+        "target.inventory_once.v1",
+        "condition.original_quality.v1"
+    ],
+    "revision": 0,
+    "schemaVersion": 1,
+    "source": {
+        "excludedSlots": [
+        ],
+        "maxItems": 33,
+        "mode": "inventory_once",
+        "originalQualities": [
+            "red"
+        ]
+    },
+    "status": "draft",
+    "steps": [
+        {
+            "action": "click",
+            "button": "right",
+            "completionCheckId": null,
+            "id": "step_load",
+            "minDelayMs": 250,
+            "name": "装入当前物品",
+            "originalQualities": [
+            ],
+            "risk": "mutating",
+            "target": {
+                "type": "current_item"
+            },
+            "timeoutMs": 3000
+        },
+        {
+            "action": "click",
+            "button": "left",
+            "completionCheckId": null,
+            "id": "step_1",
+            "minDelayMs": 180,
+            "name": "transmute",
+            "originalQualities": [
+                "red"
+            ],
+            "risk": "mutating",
+            "target": {
+                "pointId": "transmute_red",
+                "type": "point"
+            },
+            "timeoutMs": 3000
+        },
+        {
+            "action": "click",
+            "button": "left",
+            "completionCheckId": null,
+            "id": "step_2",
+            "minDelayMs": 450,
+            "name": "execute",
+            "originalQualities": [
+                "red"
+            ],
+            "risk": "mutating",
+            "target": {
+                "pointId": "execute",
+                "type": "point"
+            },
+            "timeoutMs": 3000
+        },
+        {
+            "action": "click",
+            "button": "left",
+            "completionCheckId": null,
+            "id": "step_3",
+            "minDelayMs": 1000,
+            "name": "confirm",
+            "originalQualities": [
+                "red"
+            ],
+            "risk": "mutating",
+            "target": {
+                "pointId": "confirm",
+                "type": "point"
+            },
+            "timeoutMs": 3000
+        },
+        {
+            "action": "click",
+            "button": "left",
+            "completionCheckId": null,
+            "id": "step_4",
+            "minDelayMs": 180,
+            "name": "affix",
+            "originalQualities": [
+                "yellow"
+            ],
+            "risk": "mutating",
+            "target": {
+                "pointId": "affix",
+                "type": "point"
+            },
+            "timeoutMs": 3000
+        },
+        {
+            "action": "click",
+            "button": "left",
+            "completionCheckId": null,
+            "id": "step_5",
+            "minDelayMs": 450,
+            "name": "execute",
+            "originalQualities": [
+                "yellow"
+            ],
+            "risk": "mutating",
+            "target": {
+                "pointId": "execute",
+                "type": "point"
+            },
+            "timeoutMs": 3000
+        },
+        {
+            "action": "click",
+            "button": "left",
+            "completionCheckId": null,
+            "id": "step_6",
+            "minDelayMs": 1000,
+            "name": "confirm",
+            "originalQualities": [
+                "yellow"
+            ],
+            "risk": "mutating",
+            "target": {
+                "pointId": "confirm",
+                "type": "point"
+            },
+            "timeoutMs": 3000
+        },
+        {
+            "action": "click",
+            "button": "left",
+            "completionCheckId": null,
+            "id": "step_7",
+            "minDelayMs": 180,
+            "name": "upgrade",
+            "originalQualities": [
+                "yellow"
+            ],
+            "risk": "mutating",
+            "target": {
+                "pointId": "upgrade",
+                "type": "point"
+            },
+            "timeoutMs": 3000
+        },
+        {
+            "action": "click",
+            "button": "left",
+            "completionCheckId": null,
+            "id": "step_8",
+            "minDelayMs": 450,
+            "name": "execute",
+            "originalQualities": [
+                "yellow"
+            ],
+            "risk": "mutating",
+            "target": {
+                "pointId": "execute",
+                "type": "point"
+            },
+            "timeoutMs": 3000
+        },
+        {
+            "action": "click",
+            "button": "left",
+            "completionCheckId": null,
+            "id": "step_9",
+            "minDelayMs": 1000,
+            "name": "confirm",
+            "originalQualities": [
+                "yellow"
+            ],
+            "risk": "mutating",
+            "target": {
+                "pointId": "confirm",
+                "type": "point"
+            },
+            "timeoutMs": 3000
+        },
+        {
+            "action": "click",
+            "button": "left",
+            "completionCheckId": null,
+            "id": "step_10",
+            "minDelayMs": 180,
+            "name": "transmute",
+            "originalQualities": [
+                "yellow"
+            ],
+            "risk": "mutating",
+            "target": {
+                "pointId": "transmute_yellow",
+                "type": "point"
+            },
+            "timeoutMs": 3000
+        },
+        {
+            "action": "click",
+            "button": "left",
+            "completionCheckId": null,
+            "id": "step_11",
+            "minDelayMs": 450,
+            "name": "execute",
+            "originalQualities": [
+                "yellow"
+            ],
+            "risk": "mutating",
+            "target": {
+                "pointId": "execute",
+                "type": "point"
+            },
+            "timeoutMs": 3000
+        },
+        {
+            "action": "click",
+            "button": "left",
+            "completionCheckId": null,
+            "id": "step_12",
+            "minDelayMs": 1000,
+            "name": "confirm",
+            "originalQualities": [
+                "yellow"
+            ],
+            "risk": "mutating",
+            "target": {
+                "pointId": "confirm",
+                "type": "point"
+            },
+            "timeoutMs": 3000
+        },
+        {
+            "action": "click",
+            "button": "left",
+            "completionCheckId": null,
+            "id": "step_13",
+            "minDelayMs": 350,
+            "name": "clear",
+            "originalQualities": [
+            ],
+            "risk": "mutating",
+            "target": {
+                "pointId": "clear",
+                "type": "point"
+            },
+            "timeoutMs": 3000
+        }
+    ]
+}

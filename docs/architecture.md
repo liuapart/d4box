@@ -2,6 +2,8 @@
 
 ## 当前结构
 
+补充：`app/editor` 是独立 C++ / Qt Widgets 配置编辑器，包含透明穿透绘制层、局部交互窗、步骤/检查编排与草稿 JSON；没有接入下方 AHK 执行链。用法和分层见 [编辑器说明](../app/editor/README.md)，构建与实际包体见 [编辑器构建](editor-build-size.md)。
+
 项目由单个 AutoHotkey v2 进程运行：
 
 ```text
@@ -40,8 +42,15 @@ scripts/start-windows.ps1
 
 魔盒流程的完整模型与扩展入口见 [cube-workflows.md](cube-workflows.md)。
 
-## 独立编辑器提议（尚未实施）
+## 独立编辑器实现
 
-新的 [独立编辑器方案](standalone-editor-plan.md) 建议用 Qt Quick/QML 与小型 C++ 后端构建 Mac/Windows 编辑器，由版本化 JSON 文件交给现有 AHK 主程序。编辑器不执行游戏动作；主程序继续管理输入、热键、队列和 Debug，并增加 JSON 适配与编辑安全会话。
+最终选用 Qt Widgets/QPainter，而不是此前方案中的 Qt Quick/QML，以减小动态依赖。
+`WorkflowDocument` 只负责数据/校验/文件事务；`OverlayLayer` 负责全屏无输入绘制和局部拖柄；
+`NativeOverlay` 集中 macOS AppKit/Carbon 与 Windows Win32 适配；`EditorWindow`/`WorkflowPanel`
+管理会话和属性，通过撤销事务变更文档。编辑器不执行游戏动作、不提供识别扫描。
 
-该方案尚未改变本页的“当前结构”。现有 INI 配方、GUI 与单进程入口仍可按原方式使用；JSON 不能在未增加读取与执行适配的情况下直接交给当前代码运行。
+当前存盘固定为 draft；原 INI 配方、GUI、热键及 AHK 单进程入口保持不变。
+JSON 执行器、编辑安全握手、窗口自动跟踪和运行时 Debug 不在此轮实现。
+
+GitHub Actions 仅在 `editor-v*` 标签触发编辑器三平台构建，所有构建与打包检查通过后才发布 Release；
+见 [Release 配置](editor-release.md)。没有把主程序纳入安装包。

@@ -1,6 +1,6 @@
 # d4box
 
-暗黑 IV 辅助工具。在 macOS 开发，在 Windows 运行和验证。
+暗黑 IV 辅助工具：Windows AHK 主程序与独立的 macOS/Windows 配置编辑器。在 macOS 开发，游戏交互在 Windows 验证。
 
 项目已将 D4KeyHelp 的 AHK 源码迁入主仓库，由 d4box 直接维护，不再使用 submodule。来源与许可记录见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
@@ -90,3 +90,17 @@ bash app/ahk/tests/run.sh workflow
 ## 配置其他配方
 
 点击主界面的“配方流程…”，复制内置配置后编辑步骤，支持背包筛选和已手动放入两种来源。流程的抽象、操作说明、检查点要求与当前限制见 [魔盒流程说明](docs/cube-workflows.md)。
+
+
+## 独立配置编辑器（不接 AHK）
+
+`app/editor` 使用 C++17 / Qt 6 Widgets / QPainter：全屏透明穿透绘制、局部可拖点位、
+3×11 背包八向缩放、按需浮动步骤面板、步骤/检查编排、撤销与草稿 JSON 原子保存。
+截图调试与真实桌面覆盖分开；不发送游戏输入，不识别真实物品，现有 AHK 仍读取 INI。
+
+- [编辑器使用说明](app/editor/README.md)
+- [构建、验证与实际包体](docs/editor-build-size.md)
+- [Tag 构建与 Release 安装包](docs/editor-release.md)：`editor-vX.Y.Z` 触发 Windows x64、Mac arm64/x64，全部成功才发布。
+
+发布包只含编辑器：Windows ZIP/安装 EXE，Mac ZIP/DMG；不包含 AHK 主程序。
+Windows 尚未签名、Mac 尚未做 Developer ID 公证；本地通过不等于三平台 Actions 已经运行。
