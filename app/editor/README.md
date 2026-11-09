@@ -1,6 +1,6 @@
 # D4BoxEditor · 独立配置编辑器
 
-**C++17 + Qt 6 Widgets + QPainter**，不引入 QML、WebView、Python 运行时或游戏资源。
+**C++17 + Qt 6 Widgets / SVG + QPainter**，不引入 QML、WebView、Python 运行时或游戏资源。
 生成 `schemaVersion: 1` 的 UTF-8 JSON；目前只保存 `draft`。**不接 AHK、不执行配方、不发送游戏输入。**
 
 ## 编辑流程
@@ -86,3 +86,10 @@ EDITOR="$PWD/.runtime/editor/dist/D4BoxEditor.app/Contents/MacOS/D4BoxEditor"
 Schema 是 `schema/workflow-v1.schema.json`，C++ 验证器另检查引用、范围关联与静态前提。
 `tests/core_tests.cpp`、`tests/overlay_geometry_tests.cpp`、`--ui-self-test`、`--smoke-test` 都进入 CTest。
 `--render` 只合成底图/编辑 UI，永不截取桌面；`--diagnose-overlay` 输出实际原生窗口标志，不代表真实鼠标穿透已经实测。
+
+## 界面图标与缩放
+
+- 主题箭头、勾选符号使用内嵌 SVG（resources/theme），由 Qt SVG 按目标像素尺寸绘制；不再维护 PNG 图标。
+- 顶栏图标仍使用 QPainter 矢量路径生成多倍率图标；背景截图仍支持 PNG/JPEG，不转换为 SVG。
+- 运行时增加 Qt Svg、SVG imageformats/iconengines 插件，不引入 QML 或 WebEngine。
+- CTest 与包内 --smoke-test 校验 SVG 解码、16/24/32/48/64 像素渲染和图标加载；发布必须携带 Qt SVG 源码与许可。

@@ -1,4 +1,5 @@
 #include "EditorWindow.h"
+#include "EditorTheme.h"
 
 #include <QApplication>
 #include <QCommandLineParser>
@@ -105,7 +106,7 @@ int main(int argc, char **argv) {
     QApplication::setApplicationName(QStringLiteral("D4BoxEditor"));
     QApplication::setApplicationVersion(QStringLiteral(D4BOX_EDITOR_VERSION));
     QApplication::setOrganizationName(QStringLiteral("D4Box"));
-    QApplication::setStyle(QStringLiteral("Fusion"));
+    EditorTheme::install(app);
     app.setQuitOnLastWindowClosed(false);
     QImageReader::setAllocationLimit(128);
     QCommandLineParser parser;
@@ -238,6 +239,9 @@ int main(int argc, char **argv) {
     EditorWindow window(std::move(document), directory, background, screen);
     window.start();
     if (parser.isSet(QStringLiteral("smoke-test"))) {
+        QString resourceError;
+        if (!EditorTheme::validateResources(&resourceError))
+            return reportError(resourceError, 6);
         window.showSteps();
         QTimer::singleShot(250, &window, &EditorWindow::closePreview);
     }

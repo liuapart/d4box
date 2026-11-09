@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Package the editor and measure a relocatable macOS runtime, not just its exe.
 
-Uses the selected Qt SDK's macdeployqt, retains only Cocoa + JPEG plugins,
+Uses the selected Qt SDK's macdeployqt, retains Cocoa + JPEG + SVG plugins,
 audits native dependencies, ad-hoc signs, and tests the deployed application.
 Release packages remain ad-hoc signed, not Developer-ID signed or notarized.
 """
@@ -104,6 +104,8 @@ def main() -> None:
     if args.release_version and not args.licenses_dir:
         parser.error("Release packaging requires --licenses-dir.")
     if args.licenses_dir:
+        if not (args.licenses_dir / "qtsvg/LICENSES/LGPL-3.0-only.txt").is_file():
+            parser.error("Qt SVG license material is missing.")
         for name in ("LGPL-3.0-only.txt", "GPL-3.0-only.txt"):
             if not any(p.is_file() and p.stat().st_size > 1000 for p in args.licenses_dir.rglob(name)):
                 parser.error(f"Missing Qt license text: {name}")
@@ -127,7 +129,8 @@ def main() -> None:
         app = Path(stage) / "D4BoxEditor.app"
         shutil.copytree(source, app, symlinks=True)
         extra = []
-        for relative in ("platforms/libqcocoa.dylib", "imageformats/libqjpeg.dylib"):
+        for relative in ("platforms/libqcocoa.dylib", "imageformats/libqjpeg.dylib",
+                         "imageformats/libqsvg.dylib", "iconengines/libqsvgicon.dylib"):
             destination = app / "Contents/PlugIns" / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(plugins / relative, destination)
@@ -218,7 +221,7 @@ def main() -> None:
         "macho_dependency_audit": dependencies,
         "checks": {"external_absolute_dependencies": 0, "sdk_free_plugin_search": True,
                    "adhoc_signature": True, "native_cocoa_smoke": True, "window_render": True,
-                   "png_and_jpeg_decode": True, "ui_interactions": True},
+                   "png_and_jpeg_decode": True, "svg_theme_multiscale": True, "ui_interactions": True},
         "limitations": ["Not tested on a clean second Mac", "Not Developer-ID signed/notarized",
                         "No game execution tested"] +
                        ([] if args.licenses_dir else ["Local package: release license bundle not supplied"]),

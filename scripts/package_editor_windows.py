@@ -33,6 +33,10 @@ QT_ARCHIVE_URL = (
     "qt6_6113_msvc2022_64/qt.qt6.6113.win64_msvc2022_64/" + QT_ARCHIVE
 )
 
+QT_SVG_ARCHIVE = QT_ARCHIVE.replace('qtbase-', 'qtsvg-')
+QT_SVG_SHA256 = "e8c789e1a059601dd82114dd9560952891e7c8e94e1cb291166eb61d74800353"
+QT_SVG_URL = QT_ARCHIVE_URL.replace(QT_ARCHIVE, QT_SVG_ARCHIVE)
+
 
 def version_number(value: str) -> str:
     if not re.fullmatch(VERSION_RE, value):
@@ -96,48 +100,56 @@ def validate_archive_listing(listing: str) -> None:
 def fetch_qt_sdk(prefix: Path, sevenzip: Path) -> None:
     """Qt 6.11 Windows uses compiler-specific repositories unsupported by aqt 3.3.0.
 
-    Pin the official MSVC 2022 Qt Base archive AND its official SHA-256 instead of
+    Pin the official MSVC 2022 Qt Base/SVG archives AND their SHA-256 checksums instead of
     monkey-patching aqt, skipping integrity checks or using a third-party SDK.
     """
     prefix = prefix.resolve()
     if prefix.exists():
         raise RuntimeError("Refusing to overwrite an existing Qt SDK prefix.")
     prefix.parent.mkdir(parents=True, exist_ok=True)
-    archive = prefix.parent / QT_ARCHIVE
-    if not archive.is_file() or hashlib.sha256(archive.read_bytes()).hexdigest() != QT_ARCHIVE_SHA256:
-        partial = archive.with_suffix(".partial")
-        print(f"Downloading official Qt 6.11.3 MSVC 2022 x64 SDK: {QT_ARCHIVE_URL}", flush=True)
-        with urllib.request.urlopen(QT_ARCHIVE_URL, timeout=120) as response, partial.open("wb") as out:
-            shutil.copyfileobj(response, out)
-        with partial.open("rb") as stream:
-            actual = hashlib.file_digest(stream, "sha256").hexdigest()
-        if actual != QT_ARCHIVE_SHA256:
-            raise RuntimeError(f"Qt SDK SHA-256 mismatch: {actual}")
-        partial.replace(archive)
-    listing = run(sevenzip, "l", "-slt", "-ba", "-sccUTF-8", archive)
-    validate_archive_listing(listing)
+    archives = []
+    for name, url, expected in ((QT_ARCHIVE, QT_ARCHIVE_URL, QT_ARCHIVE_SHA256),
+                                (QT_SVG_ARCHIVE, QT_SVG_URL, QT_SVG_SHA256)):
+        archive = prefix.parent / name
+        if not archive.is_file() or hashlib.sha256(archive.read_bytes()).hexdigest() != expected:
+            partial = archive.with_suffix(".partial")
+            print(f"Downloading official Qt SDK: {url}", flush=True)
+            with urllib.request.urlopen(url, timeout=120) as response, partial.open("wb") as out:
+                shutil.copyfileobj(response, out)
+            with partial.open("rb") as stream:
+                actual = hashlib.file_digest(stream, "sha256").hexdigest()
+            if actual != expected:
+                raise RuntimeError(f"Qt SDK SHA-256 mismatch: {actual}")
+            partial.replace(archive)
+        validate_archive_listing(run(sevenzip, "l", "-slt", "-ba", "-sccUTF-8", archive))
+        archives.append(archive)
     with tempfile.TemporaryDirectory(prefix=".qt-extract-", dir=prefix.parent) as temporary:
         stage = Path(temporary)
-        run(sevenzip, "x", "-y", "-sccUTF-8", f"-o{stage}", archive)
+        for archive in archives:
+            run(sevenzip, "x", "-y", "-sccUTF-8", f"-o{stage}", archive)
         # Current online archives contain bin/, lib/, etc. Accept the older versioned layout too.
         candidates = (stage, stage / "6.11.3/msvc2022_64")
         sdk = next((p for p in candidates if (p / "bin/windeployqt.exe").is_file()), None)
         if sdk is None:
             raise RuntimeError("Unexpected official Qt SDK archive layout.")
         require_x64(sdk / "bin/Qt6Core.dll")
+        require_x64(sdk / "bin/Qt6Svg.dll")
         (sdk / "bin/qt.conf").write_text("[Paths]\nPrefix=..\n", encoding="utf-8")
         if run(sdk / "bin/qtpaths.exe", "--query", "QT_VERSION").strip() != "6.11.3":
             raise RuntimeError("Wrong Qt SDK version.")
         shutil.copytree(sdk, prefix)
     (prefix / "SDK-SOURCE.json").write_text(json.dumps({
         "url": QT_ARCHIVE_URL, "sha256": QT_ARCHIVE_SHA256,
+        "svg_url": QT_SVG_URL, "svg_sha256": QT_SVG_SHA256,
         "qt_version": "6.11.3", "architecture": "win64_msvc2022_64",
     }, indent=2) + "\n", encoding="utf-8")
     print(f"Verified Qt SDK: {prefix}", flush=True)
 
 
 def validate_licenses(directory: Path) -> None:
-    # The workflow prepares these from the SHA-256-pinned Qt Base source archive.
+    # The workflow prepares these from the SHA-256-pinned Qt Base/SVG sources.
+    if not (directory / "qtsvg/LICENSES/LGPL-3.0-only.txt").is_file():
+        raise RuntimeError("Qt SVG license material is missing.")
     for name in ("LGPL-3.0-only.txt", "GPL-3.0-only.txt"):
         if not any(p.is_file() and p.stat().st_size > 1000 for p in directory.rglob(name)):
             raise RuntimeError(f"Missing Qt license text: {name}")
@@ -260,10 +272,11 @@ def package(args: argparse.Namespace) -> None:
         payload = staging / "D4BoxEditor"
         payload.mkdir()
         shutil.copy2(source, payload / source.name)
-        print("Deploying Qt Widgets and native Windows/JPEG plugins...", flush=True)
+        print("Deploying Qt Widgets/SVG and native Windows/JPEG/SVG plugins...", flush=True)
         run(qt / "bin/windeployqt.exe", "--release", "--no-translations", "--no-plugins",
             "--no-compiler-runtime", "--no-opengl-sw", "--no-system-d3d-compiler", payload / source.name)
-        for relative in ("platforms/qwindows.dll", "imageformats/qjpeg.dll"):
+        for relative in ("platforms/qwindows.dll", "imageformats/qjpeg.dll",
+                         "imageformats/qsvg.dll", "iconengines/qsvgicon.dll"):
             destination = payload / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(qt / "plugins" / relative, destination)
@@ -324,7 +337,7 @@ def package(args: argparse.Namespace) -> None:
             "installer_bytes": installer.stat().st_size if installer else None,
             "pe_dependency_audit": dependencies,
             "checks": {"native_windows_smoke": True, "window_render": True,
-                       "ui_interactions": True, "cli_regression": True,
+                       "ui_interactions": True, "cli_regression": True, "svg_theme_multiscale": True,
                        "sdk_free_plugin_search": True, "relocated_zip_smoke": True,
                        "installer_install_launch_uninstall": installer is not None},
             "limitations": ["Unsigned; no Windows SmartScreen reputation",

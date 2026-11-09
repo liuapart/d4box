@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-set(D4BOX_RELEASE_VERSION "0.2.0" CACHE STRING "Editor release version (without tag prefix)")
+set(D4BOX_RELEASE_VERSION "0.2.1" CACHE STRING "Editor release version (without tag prefix)")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" D4BOX_NUMERIC_VERSION "${D4BOX_RELEASE_VERSION}")
 if(NOT D4BOX_NUMERIC_VERSION)
     message(FATAL_ERROR "D4BOX_RELEASE_VERSION must begin with X.Y.Z")
@@ -16,16 +16,19 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE MinSizeRel CACHE STRING "Build type" FORCE)
 endif()
 
-# Keep the size probe limited to Qt Base: no QML, WebEngine, SVG, or Qt Network.
-find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets)
+# Qt Base + SVG only: no QML, WebEngine, or Qt Network.
+find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Svg)
 qt_standard_project_setup()
 qt_add_executable(D4BoxEditor MACOSX_BUNDLE
     src/main.cpp src/EditorWindow.cpp src/EditorWindow.h
+    src/EditorTheme.cpp src/EditorTheme.h
     src/WorkflowDocument.cpp src/WorkflowDocument.h
     src/WorkflowPanel.cpp src/WorkflowPanel.h
     src/OverlayLayer.cpp src/OverlayLayer.h
     src/NativeOverlay.cpp src/NativeOverlay.h)
-target_link_libraries(D4BoxEditor PRIVATE Qt6::Widgets)
+target_link_libraries(D4BoxEditor PRIVATE Qt6::Widgets Qt6::Svg)
+qt_add_resources(D4BoxEditor editor_theme PREFIX "/theme" BASE resources/theme
+    FILES resources/theme/down.svg resources/theme/up.svg resources/theme/check.svg)
 target_compile_definitions(D4BoxEditor PRIVATE
     D4BOX_EDITOR_VERSION="${D4BOX_RELEASE_VERSION}" QT_NO_CAST_FROM_ASCII QT_NO_CAST_TO_ASCII)
 set_target_properties(D4BoxEditor PROPERTIES
@@ -56,6 +59,13 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(D4BoxEditorThemeTests tests/theme_tests.cpp src/EditorTheme.cpp)
+    target_include_directories(D4BoxEditorThemeTests PRIVATE src)
+    target_link_libraries(D4BoxEditorThemeTests PRIVATE Qt6::Widgets Qt6::Svg)
+    qt_add_resources(D4BoxEditorThemeTests theme_test_images PREFIX "/theme" BASE resources/theme
+        FILES resources/theme/down.svg resources/theme/up.svg resources/theme/check.svg)
+    add_test(NAME editor-theme-controls COMMAND D4BoxEditorThemeTests)
+    set_tests_properties(editor-theme-controls PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 15)
     add_executable(D4BoxEditorCoreTests tests/core_tests.cpp src/WorkflowDocument.cpp)
     target_include_directories(D4BoxEditorCoreTests PRIVATE src)
     target_link_libraries(D4BoxEditorCoreTests PRIVATE Qt6::Core)

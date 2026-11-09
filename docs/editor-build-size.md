@@ -20,11 +20,11 @@
 
 ## 本地复现
 
-本机使用官方 Qt Base 6.11.1；已安装 SDK 可复用，不需要每次重新下载。Python 只用于构建辅助脚本，不打包进应用。
+当前构建使用官方 Qt Base + SVG 6.11.3；已安装 SDK 可复用，不需要每次重新下载。Python 只用于构建辅助脚本，不打包进应用。
 
 ```sh
 python3 scripts/fetch_editor_qt_macos.py
-QT_PREFIX="$PWD/.runtime/editor/qt-official/6.11.1/macos"
+QT_PREFIX="$PWD/.runtime/editor/qt-official/6.11.3/macos"
 cmake -S app/editor -B .runtime/editor/build-official -G Ninja \
   -DCMAKE_PREFIX_PATH="$QT_PREFIX" -DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
   -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_OSX_ARCHITECTURES=arm64 -DBUILD_TESTING=ON
@@ -51,7 +51,7 @@ EDITOR="$PWD/.runtime/editor/dist/D4BoxEditor.app/Contents/MacOS/D4BoxEditor"
 文件/目录和底图必须真实存在；无参不扫描 home/CWD。图片、个人路径、SDK 和包体不提交 Git。
 运行时可用 Control+Option+P 召回工具栏，Control+Option+D 退出只读预览；Windows 对应 Ctrl+Alt。
 
-## 当前包体
+## 历史包体（Qt Base 6.11.1，SVG 迁移前）
 
 本机 Apple Silicon arm64、macOS 26.5.2、AppleClang 17.0.0、Qt 6.11.1、MinSizeRel。
 下表是 0.2.0 最终本地打包结果，不是裸可执行文件的预测交付大小；MB 按十进制计。
@@ -69,9 +69,9 @@ EDITOR="$PWD/.runtime/editor/dist/D4BoxEditor.app/Contents/MacOS/D4BoxEditor"
 
 ### 优化方式
 
-- 只用 Qt Base Core/Gui/Widgets，不用 QML、WebEngine、Python、自带字体和游戏截图。
+- 当前只用 Qt Base Core/Gui/Widgets + Qt Svg，不用 QML、WebEngine、Python、自带字体和游戏截图。
 - MinSizeRel + 支持时的 LTO / dead strip；发布主程序剥离符号，测试程序不进入应用。
-- 官方 universal SDK 按目标架构裁片，只保留 Cocoa/JPEG 插件，审计 Mach-O/rpath/相对依赖。
+- 官方 universal SDK 按目标架构裁片，只保留 Cocoa/JPEG/SVG image 与 icon 插件，审计 Mach-O/rpath/相对依赖。
 - 不删除所需运行库、许可证或安全检查；不使用 UPX 规避签名或声称静态单文件。
 - 首个更小功能骨架对比：Homebrew 完整包 64.90 MB / ZIP 25.35 MB，官方 SDK 22.99 MB / ZIP 9.28 MB。
   这些是旧骨架数据，不是当前编辑器；当前应用多了完整逻辑和发行许可材料，不做跨版本性能等价推断。
@@ -90,3 +90,15 @@ EDITOR="$PWD/.runtime/editor/dist/D4BoxEditor.app/Contents/MacOS/D4BoxEditor"
 - JSON Schema 和内置模板通过独立 schema 校验；仓库静态检查、5 个 Python 测试、shell/空白检查通过。
 - Release YAML 通过 actionlint，Windows 打包器 5 个离线保护测试通过；MSVC/Inno 与 Intel Mac 原生构建仍需首次 CI 验证。
 - 以上为本地构建检查记录；editor-v0.2.0 的三平台 CI 和 Release 状态应以 GitHub Actions / Release 实际结果为准，安装包只在全部 job 成功后发布。
+
+## SVG 迁移后的本地测量（2026-11-09）
+
+Qt 6.11.3 / macOS arm64 / MinSizeRel，含依赖与 Base/SVG 许可：
+
+| 项目 | 迁移前 | 迁移后 |
+| --- | ---: | ---: |
+| 完整 .app payload | 24,467,258 B | 25,346,615 B |
+| ZIP | 10,113,139 B | 10,400,130 B |
+
+ZIP 增加 286,991 B（约 0.29 MB），不是只比较 SVG 与 PNG 资源大小。报告位于忽略目录 .runtime/editor/verification/svg-package/size-report.json。
+这是本地包体测量，不代表已发布新版本或完成 Windows 实机验证。

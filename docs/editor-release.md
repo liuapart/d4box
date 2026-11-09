@@ -58,12 +58,13 @@ Windows 基线为 Windows 10 1809 / Windows 11 x64。最低系统版本只是 Qt
   与 [arm64 软件](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md)：
   Xcode 16.4 满足 Qt 要求。runner 镜像不是不可变的，本次实际工具版本以 CI 日志为准。
 
-macOS 使用固定 `aqtinstall==3.3.0` 下载 Qt 官方 SDK，只安装 `qtbase`，不引入 QML / WebEngine。
+macOS 使用固定 `aqtinstall==3.3.0` 下载 Qt 官方 SDK，只安装 `qtbase` 和 `qtsvg`，不引入 QML / WebEngine。
 Windows 6.11.3 官方仓库已按编译器拆分为 `qt6_6113_msvc2022_64`；实际检查发现 aqt 3.3.0
 仍请求不存在的旧 URL。因此 Windows 使用 `package_editor_windows.py --fetch-qt` 直接下载
-官方 Qt Base MSVC 2022 x64 归档，固定 SHA-256
+官方 Qt Base / SVG MSVC 2022 x64 归档，固定 SHA-256
 `68be61b613b963daf206834fdcc57dd3b84baff3082e50679e5846ca4a7a8b86`，通过 runner 的
 7-Zip 验证成员路径并提取，写入可重定位 `qt.conf`，验证 Qt 版本。不跳过校验、不使用非官方 SDK。
+Qt SVG 归档 SHA-256 固定为 e8c789e1a059601dd82114dd9560952891e7c8e94e1cb291166eb61d74800353。
 升级 Qt 时需同步 helper 内归档 URL / SHA-256，不能只改工作流的 `QT_VERSION`。
 GitHub actions 固定完整 commit SHA，旁注相应 release tag；升级时应重新核对官方 commit。
 没有 Qt 账号、PAT、Apple 签名凭据或额外 GitHub secret 的要求。
@@ -78,6 +79,7 @@ GitHub actions 固定完整 commit SHA，旁注相应 release tag；升级时应
 - `D4BoxEditor-<version>-macos-arm64.zip` / `.dmg`。
 - `D4BoxEditor-<version>-macos-x64.zip` / `.dmg`。
 - 每个平台的 `*-report.json`：依赖审计、体积和打包器执行的验证结果。
+- `qtsvg-everywhere-src-6.11.3.tar.xz`：SVG 渲染库与插件对应的上游源码。
 - `qtbase-everywhere-src-6.11.3.tar.xz`：与动态 Qt 库对应的上游源代码归档。
 - `SHA256SUMS.txt`：以上所有文件的 SHA-256。
 
@@ -102,7 +104,7 @@ prepare job 下载 Qt 官方源代码归档，用固定 SHA-256
 macOS 位于 `.app/Contents/Resources/licenses`，Windows 位于 `licenses`。
 必需的 LGPLv3 / GPLv3 文本或第三方 attribution 缺失时失败，不能生成无许可证的 release 包。
 
-完整 Qt Base 源码作为同一 Release 的附件，保留第三方源代码和编译材料，不只给一个可能失效的链接。
+完整 Qt Base 与 SVG 源码作为同一 Release 的附件，保留第三方源代码和编译材料，不只给一个可能失效的链接。
 库保持动态链接，notice 说明可替换兼容 Qt 库以及调试这类修改的逆向工程权限。
 保留仓库已有来源声明不意味着 AHK 被打包，也不替整个应用新增许可证授权。
 发行维护者仍需确认自己符合 Qt LGPL、第三方和 Visual Studio 的分发条件。

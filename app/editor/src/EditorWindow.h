@@ -65,7 +65,7 @@ class EditorWindow : public QMainWindow {
     QComboBox *profiles;
     QLineEdit *name;
     QLabel *status;
-    QLabel *brand;
+    QLabel *brand = nullptr;
     QToolBar *bar;
     QUndoStack *undo;
     QSystemTrayIcon *tray;

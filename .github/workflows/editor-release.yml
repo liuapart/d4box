@@ -63,50 +63,55 @@ jobs:
           from pathlib import Path, PurePosixPath
           import hashlib, os, shutil, tarfile, urllib.request
           version = os.environ['QT_VERSION']
-          filename = f'qtbase-everywhere-src-{version}.tar.xz'
-          url = f'https://download.qt.io/official_releases/qt/6.11/{version}/submodules/{filename}'
-          # Official adjacent .sha256, pinned when this workflow was introduced.
-          expected = '46de0710b594945a5d446ae44354daa386141c6903c53781b2ca547bc62f8f8f'
           root = Path('.runtime/editor/release-inputs')
           licenses = root / 'licenses'
           licenses.mkdir(parents=True)
-          archive = root / filename
-          with urllib.request.urlopen(url, timeout=120) as response, archive.open('wb') as out:
-              shutil.copyfileobj(response, out)
-          with archive.open('rb') as stream:
-              actual = hashlib.file_digest(stream, 'sha256').hexdigest()
-          if actual != expected:
-              raise SystemExit(f'Qt source checksum mismatch: {actual}')
-          count = 0
-          with tarfile.open(archive, 'r:xz') as source:
-              for entry in source:
-                  path = PurePosixPath(entry.name)
-                  if path.is_absolute() or '..' in path.parts:
-                      raise SystemExit(f'Unsafe source member: {entry.name}')
-                  # Preserve full upstream-relative paths, including all bundled third-party texts.
-                  selected = (path.name.lower().startswith(('license', 'licence', 'copying', 'copyright', 'notice'))
-                              or 'LICENSES' in path.parts or path.name == 'qt_attribution.json')
-                  if entry.isfile() and selected:
-                      destination = licenses / 'qtbase' / Path(*path.parts[1:])
-                      destination.parent.mkdir(parents=True, exist_ok=True)
-                      with source.extractfile(entry) as inp, destination.open('wb') as out:
-                          shutil.copyfileobj(inp, out)
-                      count += 1
-          if count < 20:
-              raise SystemExit('Qt license/attribution collection is unexpectedly incomplete')
+          provenance = []
+          # Official source checksums pinned for both dynamically linked modules.
+          for module, expected in {
+              'qtbase': '46de0710b594945a5d446ae44354daa386141c6903c53781b2ca547bc62f8f8f',
+              'qtsvg': '9bdf6fa4b5a2d91c3eaa2edd12263fdff0ae19d0ac25d3c99946cd4189a07123',
+          }.items():
+              filename = f'{module}-everywhere-src-{version}.tar.xz'
+              url = f'https://download.qt.io/official_releases/qt/6.11/{version}/submodules/{filename}'
+              archive = root / filename
+              with urllib.request.urlopen(url, timeout=120) as response, archive.open('wb') as out:
+                  shutil.copyfileobj(response, out)
+              with archive.open('rb') as stream:
+                  actual = hashlib.file_digest(stream, 'sha256').hexdigest()
+              if actual != expected:
+                  raise SystemExit(f'Qt source checksum mismatch: {actual}')
+              count = 0
+              with tarfile.open(archive, 'r:xz') as source:
+                  for entry in source:
+                      path = PurePosixPath(entry.name)
+                      if path.is_absolute() or '..' in path.parts:
+                          raise SystemExit(f'Unsafe source member: {entry.name}')
+                      # Preserve full upstream-relative paths, including all bundled third-party texts.
+                      selected = (path.name.lower().startswith(('license', 'licence', 'copying', 'copyright', 'notice'))
+                                  or 'LICENSES' in path.parts or path.name == 'qt_attribution.json')
+                      if entry.isfile() and selected:
+                          destination = licenses / module / Path(*path.parts[1:])
+                          destination.parent.mkdir(parents=True, exist_ok=True)
+                          with source.extractfile(entry) as inp, destination.open('wb') as out:
+                              shutil.copyfileobj(inp, out)
+                          count += 1
+              if count < (20 if module == 'qtbase' else 3):
+                  raise SystemExit('Qt license/attribution collection is unexpectedly incomplete')
+              provenance.append(f'Original unmodified source: {url}\nSHA-256: {expected}\n')
+              print(f'Collected {count} {module} license/attribution files; verified {filename}')
           shutil.copytree('LICENSES', licenses / 'project')
           shutil.copy2('THIRD_PARTY_NOTICES.md', licenses / 'THIRD_PARTY_NOTICES.md')
           (licenses / 'QT-SOURCE.txt').write_text(
-              f'Qt {version}, dynamically linked Qt Base (Core/Gui/Widgets and platform/image plugins).\n'
-              f'Original unmodified source: {url}\nSHA-256: {expected}\n'
-              f'The same source archive is an asset on this editor release:\n'
+              f'Qt {version}, dynamically linked Qt Base + SVG (Core/Gui/Widgets/Svg and platform/image/icon plugins).\n'
+              + ''.join(provenance) +
+              f'The same source archives are assets on this editor release:\n'
               f'https://github.com/{os.environ["GITHUB_REPOSITORY"]}/releases/tag/{os.environ["GITHUB_REF_NAME"]}\n'
               'Qt is used under LGPLv3; GPLv3 and LGPLv3 texts and third-party notices are included.\n'
               'You may replace the dynamically linked Qt libraries with compatible modified builds;\n'
               'reverse engineering for debugging such modifications is not prohibited by this notice.\n'
               'The source archive includes Qt build instructions and third-party source code.\n'
               'No application-wide license grant is implied by third-party license texts.\n', encoding='utf-8')
-          print(f'Collected {count} Qt license/attribution files; verified {filename}')
           PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -117,7 +122,9 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: editor-release-qt-source
-          path: .runtime/editor/release-inputs/qtbase-everywhere-src-6.11.3.tar.xz
+          path: |
+            .runtime/editor/release-inputs/qtbase-everywhere-src-6.11.3.tar.xz
+            .runtime/editor/release-inputs/qtsvg-everywhere-src-6.11.3.tar.xz
           if-no-files-found: error
           compression-level: 0
           retention-days: 7
@@ -152,7 +159,7 @@ jobs:
         with:
           name: editor-licenses
           path: .runtime/editor/release-inputs/licenses
-      - name: Install official universal Qt Base SDK
+      - name: Install official universal Qt Base + SVG SDK
         run: |
           test "$(uname -m)" = "$TARGET_ARCH"
           xcodebuild -version
@@ -160,7 +167,7 @@ jobs:
           mkdir -p .runtime/editor
           # aqt also writes its diagnostic log in the current directory.
           pushd .runtime/editor >/dev/null
-          python -m aqt install-qt mac desktop "$QT_VERSION" clang_64 --archives qtbase -O qt
+          python -m aqt install-qt mac desktop "$QT_VERSION" clang_64 --archives qtbase qtsvg -O qt
           popd >/dev/null
           echo "QT_PREFIX=$GITHUB_WORKSPACE/.runtime/editor/qt/$QT_VERSION/macos" >> "$GITHUB_ENV"
       - name: Build editor and run CTest
@@ -271,10 +278,10 @@ jobs:
               "$name=$value" >> $env:GITHUB_ENV
             }
           }
-      - name: Install official Qt Base MSVC SDK
+      - name: Install official Qt Base + SVG MSVC SDK
         run: |
           # Qt 6.11 split Windows repositories by compiler; aqt 3.3.0 uses the old URL.
-          # Use the official qtbase archive, pinned SHA-256, and runner-provided 7-Zip.
+          # Use the official qtbase/qtsvg archives, pinned SHA-256, and runner-provided 7-Zip.
           $prefix = "$env:GITHUB_WORKSPACE/.runtime/editor/qt/$env:QT_VERSION/msvc2022_64"
           $sevenzip = "$env:ProgramFiles\7-Zip\7z.exe"
           if (!(Test-Path $sevenzip)) { throw 'Runner must provide 7-Zip' }
@@ -336,7 +343,8 @@ jobs:
           import hashlib, os
           root = Path('assets')
           version = os.environ['RELEASE_VERSION']
-          expected = {f'qtbase-everywhere-src-{os.environ["QT_VERSION"]}.tar.xz'}
+          expected = {f'{module}-everywhere-src-{os.environ["QT_VERSION"]}.tar.xz'
+                      for module in ('qtbase', 'qtsvg')}
           for platform, suffixes in [('windows-x64', ['.zip', '-setup.exe', '-report.json']),
                                      ('macos-arm64', ['.zip', '.dmg', '-report.json']),
                                      ('macos-x64', ['.zip', '.dmg', '-report.json'])]:
@@ -384,7 +392,7 @@ jobs:
           - Windows packages are unsigned; macOS apps are ad-hoc signed, not Developer-ID signed/notarized.
             SmartScreen/Gatekeeper may block first launch. No signing secrets are used.
           - Qt 6.11.3 LGPL/GPL and bundled third-party notices are included in each package;
-            the matching unmodified Qt Base source archive is attached for library modifications.
+            the matching unmodified Qt Base + SVG source archives are attached for library modifications.
           - SHA256SUMS.txt covers every download. Build/runtime audits are in the JSON reports.
 
           Native CI builds, CTest and packaged smoke tests passed for all three targets before publication.

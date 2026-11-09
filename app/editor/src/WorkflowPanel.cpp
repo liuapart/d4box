@@ -11,6 +11,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QStyledItemDelegate>
 #include <QMenu>
 #include <QMessageBox>
 #include <QPushButton>
@@ -87,6 +88,7 @@ QWidget *page(QTabWidget *tabs, const QString &title, QVBoxLayout **layout) {
     auto *body = new QWidget;
     *layout = new QVBoxLayout(body);
     (*layout)->setContentsMargins(12, 12, 12, 12);
+    (*layout)->setSpacing(10);
     scroll->setWidget(body);
     tabs->addTab(scroll, title);
     return body;
@@ -122,13 +124,28 @@ WorkflowPanel::WorkflowPanel(WorkflowDocument *document, Mutation mutation, QWid
     setAttribute(Qt::WA_QuitOnClose, false);
     resize(438, 720);
     auto *root = new QVBoxLayout(this);
-    root->setContentsMargins(0, 0, 0, 8);
+    root->setContentsMargins(10, 4, 10, 10);
+    root->setSpacing(10);
     tabs = new QTabWidget(this);
     root->addWidget(tabs);
     buildSteps();
     buildPoints();
     buildChecks();
     buildLayout();
+    for (auto *box : findChildren<QComboBox *>()) {
+        box->setItemDelegate(new QStyledItemDelegate(box));
+        box->setMaxVisibleItems(9);
+        box->setCursor(Qt::PointingHandCursor);
+        box->view()->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
+    }
+    for (auto *form : findChildren<QFormLayout *>()) {
+        form->setVerticalSpacing(10);
+        form->setHorizontalSpacing(14);
+        form->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    }
+    for (auto *list : findChildren<QListWidget *>())
+        list->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     validation = new QLabel;
     validation->setObjectName(QStringLiteral("validation"));
     validation->setWordWrap(true);
@@ -143,6 +160,9 @@ WorkflowPanel::WorkflowPanel(WorkflowDocument *document, Mutation mutation, QWid
 void WorkflowPanel::buildSteps() {
     QVBoxLayout *v;
     page(tabs, QStringLiteral("步骤"), &v);
+    auto *heading = new QLabel(QStringLiteral("执行范围"));
+    heading->setProperty("role", QStringLiteral("heading"));
+    v->addWidget(heading);
     auto *form = new QFormLayout;
     sourceMode = new QComboBox;
     sourceMode->setObjectName(QStringLiteral("sourceMode"));
@@ -179,7 +199,11 @@ void WorkflowPanel::buildSteps() {
     auto *hint = new QLabel(
         QStringLiteral("不勾颜色＝全部；颜色只是分类标签，不识别收藏/暗金。循环是有限队列，不是无限重复。"));
     hint->setWordWrap(true);
+    hint->setProperty("role", QStringLiteral("hint"));
     v->addWidget(hint);
+    heading = new QLabel(QStringLiteral("动作序列"));
+    heading->setProperty("role", QStringLiteral("heading"));
+    v->addWidget(heading);
     auto *row = new QHBoxLayout;
     auto *add = button(row, QStringLiteral("＋ 新增步骤"), QStringLiteral("addStep"));
     auto *menu = new QMenu(add);
@@ -197,13 +221,14 @@ void WorkflowPanel::buildSteps() {
         });
     }
     add->setMenu(menu);
+    add->setProperty("menuButton", true);
     deleteStep = button(row, QStringLiteral("删除选中"), QStringLiteral("deleteStep"));
     deleteStep->setProperty("danger", true);
     v->addLayout(row);
     steps = new QListWidget;
     steps->setObjectName(QStringLiteral("stepsList"));
     steps->setMinimumHeight(135);
-    steps->setMaximumHeight(240);
+    steps->setMaximumHeight(180);
     steps->setDragDropMode(QAbstractItemView::InternalMove);
     steps->setDefaultDropAction(Qt::MoveAction);
     v->addWidget(steps);

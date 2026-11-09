@@ -1,4 +1,5 @@
 #include "EditorWindow.h"
+#include "EditorTheme.h"
 #include "NativeOverlay.h"
 #include "OverlayLayer.h"
 #include "WorkflowPanel.h"
@@ -32,6 +33,7 @@
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QToolBar>
+#include <QToolButton>
 #include <QUndoCommand>
 #include <QUndoStack>
 #include <QUuid>
@@ -83,31 +85,6 @@ EditorWindow::EditorWindow(WorkflowDocument input, QString folder, QImage image,
     setAttribute(Qt::WA_MacAlwaysShowToolWindow, true);
 #endif
     qApp->installEventFilter(this);
-    qApp->setStyleSheet(
-        QStringLiteral("QWidget { color:#F0F5FA; font-size:13px; }"
-                       "QMainWindow#editorToolbar, QToolBar { background:#20323F; border:0; spacing:6px; }"
-                       "QWidget#stepsPanel, QDialog, QMessageBox, QTabWidget::pane { background:#111A23; }"
-                       "QScrollArea, QScrollArea > QWidget > QWidget { background:#111A23; }"
-                       "QPushButton, QToolButton { background:#1B2833; border:1px solid #43515D; "
-                       "border-radius:5px; padding:6px 9px; }"
-                       "QPushButton:hover, QToolButton:hover { border-color:#71F4DE; background:#233F39; }"
-                       "QPushButton:focus, QLineEdit:focus, QComboBox:focus, QSpinBox:focus, "
-                       "QDoubleSpinBox:focus { border:1px solid #71F4DE; }"
-                       "QPushButton[danger=true] { color:#EDB6B6; border-color:#80585D; }"
-                       "QPushButton:disabled, QToolButton:disabled { color:#73818C; border-color:#30414F; }"
-                       "QComboBox, QLineEdit, QSpinBox, QDoubleSpinBox { background:#111A23; border:1px "
-                       "solid #43515D; border-radius:4px; padding:5px; min-height:20px; }"
-                       "QComboBox QAbstractItemView, QListWidget { background:#1B2833; "
-                       "selection-background-color:#233F39; color:#F0F5FA; }"
-                       "QListWidget { border:1px solid #43515D; border-radius:5px; }"
-                       "QListWidget::item { padding:8px; border-bottom:1px solid #30414F; }"
-                       "QListWidget::item:selected { background:#233F39; border:1px solid #71F4DE; }"
-                       "QTabBar::tab { background:#20323F; padding:9px 20px; }"
-                       "QTabBar::tab:selected { background:#233F39; border-bottom:2px solid #71F4DE; }"
-                       "QMenu { background:#111A23; border:1px solid #43515D; padding:5px; }"
-                       "QMenu::item { padding:7px 22px; } QMenu::item:selected { background:#233F39; }"
-                       "QLabel#validation { color:#BCCAD6; font-size:12px; }"
-                       "QToolTip { color:#F0F5FA; background:#20323F; border:1px solid #71F4DE; }"));
     undo = new QUndoStack(this);
     undo->setUndoLimit(200);
     overlay = new OverlayLayer(&document, screenIndex, image, this);
@@ -142,33 +119,44 @@ EditorWindow::EditorWindow(WorkflowDocument input, QString folder, QImage image,
         });
     };
     bar = new QToolBar(this);
+    bar->setObjectName(QStringLiteral("commandBar"));
     bar->setMovable(false);
-    bar->setContentsMargins(6, 4, 6, 4);
-    bar->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    addToolBar(bar);
-    brand = new QLabel(QStringLiteral("  D4BOX  "));
+    bar->setFloatable(false);
+    bar->setIconSize(QSize(16, 16));
+    bar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    setAttribute(Qt::WA_TranslucentBackground);
+    setCentralWidget(bar);
+    brand = new QLabel(QStringLiteral("D4BOX"));
     brand->setCursor(Qt::SizeAllCursor);
-    brand->setStyleSheet(QStringLiteral("color:#71F4DE;font-weight:700"));
+    brand->setObjectName(QStringLiteral("brand"));
     brand->setToolTip(QStringLiteral("拖动此处移动工具栏"));
     brand->installEventFilter(this);
     bar->addWidget(brand);
     profiles = new QComboBox;
-    profiles->setFixedWidth(175);
+    profiles->setFixedWidth(154);
     profiles->setAccessibleName(QStringLiteral("同目录配置"));
     bar->addWidget(profiles);
     name = new QLineEdit;
-    name->setFixedWidth(142);
+    name->setObjectName(QStringLiteral("profileName"));
+    name->setFixedWidth(132);
+    name->setToolTip(QStringLiteral("点击修改方案名称"));
     name->setAccessibleName(QStringLiteral("配置名称"));
     bar->addWidget(name);
     status = new QLabel;
-    status->setFixedWidth(16);
+    status->setObjectName(QStringLiteral("saveState"));
+    status->setFixedWidth(48);
+    status->setFixedHeight(22);
+    status->setAlignment(Qt::AlignCenter);
     bar->addWidget(status);
+    bar->addSeparator();
     auto action = [this](const QString &text, const std::function<void()> &run) {
         auto *a = bar->addAction(text);
         connect(a, &QAction::triggered, this, run);
+        if (auto *button = qobject_cast<QToolButton *>(bar->widgetForAction(a)))
+            button->setCursor(Qt::PointingHandCursor);
         return a;
     };
-    action(QStringLiteral("＋ 点位"), [this] {
+    action(QStringLiteral("点位"), [this] {
         QString id;
         mutate(QStringLiteral("新增点位"), [this, &id] {
             id = document.addPoint(QStringLiteral("点位 %1").arg(
@@ -183,6 +171,7 @@ EditorWindow::EditorWindow(WorkflowDocument input, QString folder, QImage image,
         panel->showLayout();
     });
     action(QStringLiteral("编辑步骤"), [this] { showSteps(); });
+    bar->addSeparator();
     action(QStringLiteral("预览"), [this] {
         togglePreview();
     })->setToolTip(QStringLiteral("仅点位和背包格线；Ctrl+Alt+D 返回。不是实时物品识别。"));
@@ -194,10 +183,20 @@ EditorWindow::EditorWindow(WorkflowDocument input, QString folder, QImage image,
         operate->setText(passthrough ? QStringLiteral("返回编辑") : QStringLiteral("操作底层"));
     });
     operate->setCheckable(true);
-    action(QStringLiteral("保存"), [this] { save(); });
+    auto *spacer = new QWidget;
+    spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    spacer->setMinimumWidth(12);
+    bar->addWidget(spacer);
+    auto *saveButton = action(QStringLiteral("保存"), [this] { save(); });
+    bar->widgetForAction(saveButton)->setProperty("role", QStringLiteral("primary"));
     auto *more = action(QStringLiteral("更多"), [] {});
     auto *menu = new QMenu(this);
     more->setMenu(menu);
+    if (auto *button = qobject_cast<QToolButton *>(bar->widgetForAction(more))) {
+        button->setObjectName(QStringLiteral("moreButton"));
+        button->setPopupMode(QToolButton::InstantPopup);
+        button->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    }
     auto option = [this, menu](const QString &label, const std::function<void()> &fn) {
         auto *a = menu->addAction(label);
         connect(a, &QAction::triggered, this, fn);
@@ -274,7 +273,22 @@ EditorWindow::EditorWindow(WorkflowDocument input, QString folder, QImage image,
                 "个柄：缩放\n\n只编辑 JSON，不点击游戏、不识别物品；退出前保存或放弃修改。\n") +
                 (shortcuts->active() ? QStringLiteral("全局编辑快捷键已注册。") : shortcuts->error()));
     });
-    action(QStringLiteral("退出"), [this] { close(); });
+    auto *exitButton = action(QStringLiteral("退出"), [this] { close(); });
+    exitButton->setIcon(EditorTheme::icon(EditorTheme::Symbol::Close));
+    exitButton->setToolTip(QStringLiteral("退出编辑器 · 未保存时会询问"));
+    if (auto *button = qobject_cast<QToolButton *>(bar->widgetForAction(exitButton)))
+        button->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    const QList<QPair<QString, EditorTheme::Symbol>> symbols{
+        {QStringLiteral("点位"), EditorTheme::Symbol::Add},
+        {QStringLiteral("背包"), EditorTheme::Symbol::Grid},
+        {QStringLiteral("编辑步骤"), EditorTheme::Symbol::Steps},
+        {QStringLiteral("预览"), EditorTheme::Symbol::Eye},
+        {QStringLiteral("操作底层"), EditorTheme::Symbol::Pointer},
+        {QStringLiteral("保存"), EditorTheme::Symbol::Save}};
+    for (auto *a : bar->actions())
+        for (const auto &entry : symbols)
+            if (a->text() == entry.first)
+                a->setIcon(EditorTheme::icon(entry.second, entry.second == EditorTheme::Symbol::Save));
     auto *undoAction = undo->createUndoAction(this);
     undoAction->setShortcut(QKeySequence::Undo);
     undoAction->setShortcutContext(Qt::ApplicationShortcut);
@@ -319,7 +333,7 @@ EditorWindow::EditorWindow(WorkflowDocument input, QString folder, QImage image,
         panel->hide();
         hide();
     });
-    connect(overlay, &OverlayLayer::geometryEdited, this, [this] { status->setText(QStringLiteral("●")); });
+    connect(overlay, &OverlayLayer::geometryEdited, this, [this] { status->setText(QStringLiteral("未保存")); });
     connect(overlay, &OverlayLayer::editFinished, this, [this] {
         dragging = false;
         if (dragSnapshot != document.data)
@@ -430,7 +444,7 @@ void EditorWindow::refresh() {
         QSignalBlocker b(name);
         name->setText(document.data.value(QStringLiteral("name")).toString());
     }
-    status->setText(document.dirty ? QStringLiteral("●") : QStringLiteral("✓"));
+    status->setText(document.dirty ? QStringLiteral("未保存") : QStringLiteral("已保存"));
     status->setToolTip(document.dirty ? QStringLiteral("未保存修改 · 只写草稿 JSON")
                                       : QStringLiteral("已保存草稿 · 不执行"));
     setWindowTitle(QStringLiteral("D4Box · %1%2")
@@ -443,7 +457,7 @@ void EditorWindow::refreshCatalog() {
     QSignalBlocker b(profiles);
     profiles->clear();
     if (document.filePath.isEmpty())
-        profiles->addItem(QStringLiteral("新配置 · 未保存"), QString{});
+        profiles->addItem(QStringLiteral("新建方案"), QString{});
     QStringList invalid;
     QHash<QString, int> ids;
     const auto files = WorkflowDocument::catalog(directory, &invalid);
@@ -467,7 +481,7 @@ void EditorWindow::refreshCatalog() {
         index = profiles->count() - 1;
     }
     profiles->setCurrentIndex(qMax(0, index));
-    profiles->setToolTip(invalid.isEmpty() ? QStringLiteral("同目录配置；按文件名排序")
+    profiles->setToolTip(invalid.isEmpty() ? profiles->currentText() + QStringLiteral("\n同目录配置；按文件名排序")
                                            : invalid.join(QLatin1Char('\n')));
 }
 void EditorWindow::showSteps() {
@@ -476,7 +490,7 @@ void EditorWindow::showSteps() {
     if (!panel->property("positioned").toBool()) {
         const auto screen = QGuiApplication::screens().value(screenIndex, QGuiApplication::primaryScreen());
         const auto available = screen->availableGeometry();
-        panel->resize(qMin(438, available.width() - 24), qMin(720, available.height() - 88));
+        panel->resize(qMin(470, available.width() - 24), qMin(760, available.height() - 100));
         panel->move(available.left() + 24, available.top() + 70);
         panel->setProperty("positioned", true);
     }
@@ -489,7 +503,9 @@ bool EditorWindow::placeToolbar(bool avoidPoints) {
     if (!screen)
         return false;
     const auto r = screen->availableGeometry();
-    setFixedSize(qMin(1190, r.width() - 24), 52);
+    profiles->setFixedWidth(r.width() < 1150 ? 124 : 154);
+    name->setFixedWidth(r.width() < 1150 ? 106 : 132);
+    setFixedSize(qMin(bar->sizeHint().width() + 4, r.width() - 24), 54);
     const int left = r.center().x() - width() / 2;
     if (avoidPoints) {
         for (int y = r.top() + 8; y + height() < r.bottom() - 4; y += height() + 8) {
