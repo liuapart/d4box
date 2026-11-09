@@ -24,13 +24,24 @@ CI 给 CMake 传入 `-DD4BOX_RELEASE_VERSION=0.1.0[-rc.1]`，**不在工作流�
 
 ## 构建矩阵
 
-| 下载平台 | GitHub-hosted runner | 官方 Qt 6.11.1 SDK | 编译方式 |
+| 下载平台 | GitHub-hosted runner | 官方 Qt 6.11.3 SDK | 编译方式 |
 | --- | --- | --- | --- |
 | Windows x64 | `windows-2022` | `win64_msvc2022_64` | VS 2022 x64 / Ninja / MinSizeRel |
 | macOS Apple Silicon | `macos-15` | `clang_64`，官方 universal SDK | 原生 arm64 / Ninja / MinSizeRel |
 | macOS Intel | `macos-15-intel` | 同一 universal SDK | 原生 x86_64 / Ninja / MinSizeRel |
 
 三种目标都实际运行 CTest，不交叉编译后假装通过目标平台验证。
+macOS 额外运行 `editor-native-image`，检查带自定义 ICC 色彩配置的 QImage → CGImage
+转换及图像销毁后的颜色空间生命周期；这个测试直接调用 CoreGraphics，不依赖 offscreen 窗口。
+
+2026-11-09 将官方 Qt 固定到 6.11.3：arm64 CI 的构建目录与发布包均在
+`QImage::toCGImage()` → `CGImageCreate()` → `CGColorSpaceGetType()` 崩溃，
+由显示移动光标触发。Qt 6.11.1 的临时 `QCFType<CGColorSpaceRef>` 在返回时释放颜色空间，
+返回的结构体却仍持有裸指针；新版本已通过拥有颜色空间的 `QCGImageFormat` 修复。
+对应 [QTBUG-147602 上游修复](https://github.com/qt/qtbase/commit/08e464f8559719662c5b2207d1d4c84c251eca07)。
+保留原生 Cocoa 冒烟测试、拖动光标和发布门禁，不通过 offscreen 或删除光标绕过崩溃。
+本机较新 macOS 可能不复现旧版问题，最终以两个 Mac CI 原生测试为准。
+
 macOS 设置 deployment target 13.0；SDK 内 universal Mach-O 在打包时裁剪为对应架构。
 Windows 基线为 Windows 10 1809 / Windows 11 x64。最低系统版本只是 Qt 支持基线，
 本工作流不包含 Windows 10 或 macOS 13 的真机回归。
@@ -48,10 +59,10 @@ Windows 基线为 Windows 10 1809 / Windows 11 x64。最低系统版本只是 Qt
   Xcode 16.4 满足 Qt 要求。runner 镜像不是不可变的，本次实际工具版本以 CI 日志为准。
 
 macOS 使用固定 `aqtinstall==3.3.0` 下载 Qt 官方 SDK，只安装 `qtbase`，不引入 QML / WebEngine。
-Windows 6.11.1 官方仓库已按编译器拆分为 `qt6_6111_msvc2022_64`；实际检查发现 aqt 3.3.0
+Windows 6.11.3 官方仓库已按编译器拆分为 `qt6_6113_msvc2022_64`；实际检查发现 aqt 3.3.0
 仍请求不存在的旧 URL。因此 Windows 使用 `package_editor_windows.py --fetch-qt` 直接下载
 官方 Qt Base MSVC 2022 x64 归档，固定 SHA-256
-`7f97edc3937fec7383eb865e010ed5128155bf9c80a563abca450860f3e9bef5`，通过 runner 的
+`68be61b613b963daf206834fdcc57dd3b84baff3082e50679e5846ca4a7a8b86`，通过 runner 的
 7-Zip 验证成员路径并提取，写入可重定位 `qt.conf`，验证 Qt 版本。不跳过校验、不使用非官方 SDK。
 升级 Qt 时需同步 helper 内归档 URL / SHA-256，不能只改工作流的 `QT_VERSION`。
 GitHub actions 固定完整 commit SHA，旁注相应 release tag；升级时应重新核对官方 commit。
@@ -67,7 +78,7 @@ GitHub actions 固定完整 commit SHA，旁注相应 release tag；升级时应
 - `D4BoxEditor-<version>-macos-arm64.zip` / `.dmg`。
 - `D4BoxEditor-<version>-macos-x64.zip` / `.dmg`。
 - 每个平台的 `*-report.json`：依赖审计、体积和打包器执行的验证结果。
-- `qtbase-everywhere-src-6.11.1.tar.xz`：与动态 Qt 库对应的上游源代码归档。
+- `qtbase-everywhere-src-6.11.3.tar.xz`：与动态 Qt 库对应的上游源代码归档。
 - `SHA256SUMS.txt`：以上所有文件的 SHA-256。
 
 macOS DMG 内是真实 `.app` 和 `/Applications` 快捷方式，不是空壳安装器。
@@ -85,7 +96,7 @@ app-local redistributable 部署；与系统集中安装相比，CRT 安全更�
 ## 许可与来源材料
 
 prepare job 下载 Qt 官方源代码归档，用固定 SHA-256
-`d9594a31228aa23ad6b531719a29b45f0f3989fe6c136d45767ea179f233c1ac` 校验，
+`46de0710b594945a5d446ae44354daa386141c6903c53781b2ca547bc62f8f8f` 校验，
 保持源代码相对路径收集 `LICENSES`、LICENSE / COPYING / COPYRIGHT / NOTICE 文本和
 `qt_attribution.json`。每个应用包包含这些材料、项目已有 notices 和 `QT-SOURCE.txt`；
 macOS 位于 `.app/Contents/Resources/licenses`，Windows 位于 `licenses`。

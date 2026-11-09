@@ -12,9 +12,9 @@ import subprocess
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "6.11.1"
-ARCHIVE = "6.11.1-0-202605090526qtbase-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z"
-BASE = "https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6111/qt6_6111/qt.qt6.6111.clang_64/"
+VERSION = "6.11.3"
+ARCHIVE = "6.11.3-0-202610220312qtbase-MacOS-MacOS_15-Clang-MacOS-MacOS_15-X86_64-ARM64.7z"
+BASE = "https://download.qt.io/online/qtsdkrepository/mac_x64/desktop/qt6_6113/qt6_6113/qt.qt6.6113.clang_64/"
 
 
 def main() -> None:

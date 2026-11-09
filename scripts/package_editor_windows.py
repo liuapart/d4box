@@ -26,11 +26,11 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 FAILURE_OUTPUT_LIMIT = 16_384  # Characters per stream; retain both the start and end.
 VERSION_RE = r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?"
-QT_ARCHIVE = "6.11.1-0-202605090529qtbase-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z"
-QT_ARCHIVE_SHA256 = "7f97edc3937fec7383eb865e010ed5128155bf9c80a563abca450860f3e9bef5"
+QT_ARCHIVE = "6.11.3-0-202610220312qtbase-Windows-Windows_11_24H2-MSVC2022-Windows-Windows_11_24H2-X86_64.7z"
+QT_ARCHIVE_SHA256 = "68be61b613b963daf206834fdcc57dd3b84baff3082e50679e5846ca4a7a8b86"
 QT_ARCHIVE_URL = (
-    "https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6111/"
-    "qt6_6111_msvc2022_64/qt.qt6.6111.win64_msvc2022_64/" + QT_ARCHIVE
+    "https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_6113/"
+    "qt6_6113_msvc2022_64/qt.qt6.6113.win64_msvc2022_64/" + QT_ARCHIVE
 )
 
 
@@ -106,7 +106,7 @@ def fetch_qt_sdk(prefix: Path, sevenzip: Path) -> None:
     archive = prefix.parent / QT_ARCHIVE
     if not archive.is_file() or hashlib.sha256(archive.read_bytes()).hexdigest() != QT_ARCHIVE_SHA256:
         partial = archive.with_suffix(".partial")
-        print(f"Downloading official Qt 6.11.1 MSVC 2022 x64 SDK: {QT_ARCHIVE_URL}", flush=True)
+        print(f"Downloading official Qt 6.11.3 MSVC 2022 x64 SDK: {QT_ARCHIVE_URL}", flush=True)
         with urllib.request.urlopen(QT_ARCHIVE_URL, timeout=120) as response, partial.open("wb") as out:
             shutil.copyfileobj(response, out)
         with partial.open("rb") as stream:
@@ -120,18 +120,18 @@ def fetch_qt_sdk(prefix: Path, sevenzip: Path) -> None:
         stage = Path(temporary)
         run(sevenzip, "x", "-y", "-sccUTF-8", f"-o{stage}", archive)
         # Current online archives contain bin/, lib/, etc. Accept the older versioned layout too.
-        candidates = (stage, stage / "6.11.1/msvc2022_64")
+        candidates = (stage, stage / "6.11.3/msvc2022_64")
         sdk = next((p for p in candidates if (p / "bin/windeployqt.exe").is_file()), None)
         if sdk is None:
             raise RuntimeError("Unexpected official Qt SDK archive layout.")
         require_x64(sdk / "bin/Qt6Core.dll")
         (sdk / "bin/qt.conf").write_text("[Paths]\nPrefix=..\n", encoding="utf-8")
-        if run(sdk / "bin/qtpaths.exe", "--query", "QT_VERSION").strip() != "6.11.1":
+        if run(sdk / "bin/qtpaths.exe", "--query", "QT_VERSION").strip() != "6.11.3":
             raise RuntimeError("Wrong Qt SDK version.")
         shutil.copytree(sdk, prefix)
     (prefix / "SDK-SOURCE.json").write_text(json.dumps({
         "url": QT_ARCHIVE_URL, "sha256": QT_ARCHIVE_SHA256,
-        "qt_version": "6.11.1", "architecture": "win64_msvc2022_64",
+        "qt_version": "6.11.3", "architecture": "win64_msvc2022_64",
     }, indent=2) + "\n", encoding="utf-8")
     print(f"Verified Qt SDK: {prefix}", flush=True)
 
@@ -459,7 +459,7 @@ def main() -> None:
     parser.add_argument("--sevenzip", type=Path, default=Path("7z.exe"))
     parser.add_argument("--build-dir", type=Path, default=ROOT / ".runtime/editor/build")
     parser.add_argument("--qt-prefix", type=Path)
-    parser.add_argument("--qt-version", default="6.11.1")
+    parser.add_argument("--qt-version", default="6.11.3")
     parser.add_argument("--licenses-dir", type=Path)
     parser.add_argument("--crt-dir", type=Path)
     parser.add_argument("--version")

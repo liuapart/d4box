@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  QT_VERSION: '6.11.1'
+  QT_VERSION: '6.11.3'
   AQT_VERSION: '3.3.0'
 
 jobs:
@@ -66,7 +66,7 @@ jobs:
           filename = f'qtbase-everywhere-src-{version}.tar.xz'
           url = f'https://download.qt.io/official_releases/qt/6.11/{version}/submodules/{filename}'
           # Official adjacent .sha256, pinned when this workflow was introduced.
-          expected = 'd9594a31228aa23ad6b531719a29b45f0f3989fe6c136d45767ea179f233c1ac'
+          expected = '46de0710b594945a5d446ae44354daa386141c6903c53781b2ca547bc62f8f8f'
           root = Path('.runtime/editor/release-inputs')
           licenses = root / 'licenses'
           licenses.mkdir(parents=True)
@@ -117,7 +117,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: editor-release-qt-source
-          path: .runtime/editor/release-inputs/qtbase-everywhere-src-6.11.1.tar.xz
+          path: .runtime/editor/release-inputs/qtbase-everywhere-src-6.11.3.tar.xz
           if-no-files-found: error
           compression-level: 0
           retention-days: 7
@@ -383,7 +383,7 @@ jobs:
           - macOS 13+: choose arm64 for Apple Silicon or x64 for Intel; ZIP and real DMG supplied.
           - Windows packages are unsigned; macOS apps are ad-hoc signed, not Developer-ID signed/notarized.
             SmartScreen/Gatekeeper may block first launch. No signing secrets are used.
-          - Qt 6.11.1 LGPL/GPL and bundled third-party notices are included in each package;
+          - Qt 6.11.3 LGPL/GPL and bundled third-party notices are included in each package;
             the matching unmodified Qt Base source archive is attached for library modifications.
           - SHA256SUMS.txt covers every download. Build/runtime audits are in the JSON reports.
 

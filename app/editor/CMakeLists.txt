@@ -67,6 +67,12 @@ if(BUILD_TESTING)
     if(APPLE)
         target_sources(D4BoxEditorOverlayTests PRIVATE src/NativeOverlay.mm)
         target_link_libraries(D4BoxEditorOverlayTests PRIVATE "-framework AppKit" "-framework Carbon")
+        # QTBUG-147602: exercise native CGImage colorspace ownership even when
+        # the widget tests use offscreen. No window server or game input needed.
+        add_executable(D4BoxEditorNativeImageTests tests/native_image_tests.mm)
+        target_link_libraries(D4BoxEditorNativeImageTests PRIVATE Qt6::Gui "-framework CoreGraphics")
+        add_test(NAME editor-native-image COMMAND D4BoxEditorNativeImageTests)
+        set_tests_properties(editor-native-image PROPERTIES TIMEOUT 15)
     elseif(WIN32)
         target_link_libraries(D4BoxEditorOverlayTests PRIVATE user32)
     endif()
