@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-set(D4BOX_RELEASE_VERSION "0.2.5" CACHE STRING "Editor release version (without tag prefix)")
+set(D4BOX_RELEASE_VERSION "0.2.6" CACHE STRING "Editor release version (without tag prefix)")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" D4BOX_NUMERIC_VERSION "${D4BOX_RELEASE_VERSION}")
 if(NOT D4BOX_NUMERIC_VERSION)
     message(FATAL_ERROR "D4BOX_RELEASE_VERSION must begin with X.Y.Z")

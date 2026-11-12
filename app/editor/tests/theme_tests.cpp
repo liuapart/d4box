@@ -93,6 +93,10 @@ int main(int argc, char **argv) {
     QT_WARNING_DISABLE_DEPRECATED
     QApplication::setActiveWindow(&window);
     QT_WARNING_POP
+    auto *initialScrollEffect = qobject_cast<QGraphicsOpacityEffect *>(
+        scroll->verticalScrollBar()->graphicsEffect());
+    check(initialScrollEffect && initialScrollEffect->opacity() == 0,
+          "newly shown form keeps scrollbar hidden until pointer enters or scrolling starts");
     check(scroll->verticalScrollBar()->maximum() > 0, "long content scrolls");
     scroll->verticalScrollBar()->setValue(80);
     check(scroll->verticalScrollBar()->value() == 80, "scrollbar can move");

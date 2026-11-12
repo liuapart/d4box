@@ -103,7 +103,6 @@ protected:
         case QEvent::Wheel:
         case QEvent::KeyPress:
         case QEvent::MouseButtonPress:
-        case QEvent::Show:
             reveal();
             break;
         default: break;
