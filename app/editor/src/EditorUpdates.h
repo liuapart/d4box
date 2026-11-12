@@ -25,6 +25,8 @@ QString assetName(const QString &version, const QString &platform, const QString
 std::optional<EditorRelease> newest(const QByteArray &json, const QString &currentVersion,
                                     const QString &asset, QString *error = nullptr);
 QByteArray expectedHash(const QByteArray &checksums, const QString &asset);
+QStringList publicDownloadArgs(const QString &url, const QString &outputPath, qint64 maximumBytes,
+                               int timeoutSeconds);
 bool isPackaged(QString *reason = nullptr);
 }
 

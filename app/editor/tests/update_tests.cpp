@@ -23,6 +23,19 @@ int main(int argc, char **argv) {
           QStringLiteral("D4BoxEditor-1.2.3-windows-x64-setup.exe"), "Windows installer asset name");
     check(EditorUpdates::assetName(QStringLiteral("1.2.3"), QStringLiteral("windows"),
                                    QStringLiteral("arm64")).isEmpty(), "unsupported architecture has no asset");
+    const auto curlArgs = EditorUpdates::publicDownloadArgs(
+        QStringLiteral("https://github.com/liuapart/d4box/releases/download/editor-v1.2.3/SHA256SUMS.txt"),
+        QStringLiteral("/tmp/checksums.txt"), 131072, 120);
+    check(curlArgs.first() == QStringLiteral("--disable") &&
+          curlArgs.contains(QStringLiteral("--location")) &&
+          curlArgs.contains(QStringLiteral("--fail")) &&
+          curlArgs.contains(QStringLiteral("--proto-redir")) &&
+          curlArgs.contains(QStringLiteral("=https")) &&
+          curlArgs.contains(QStringLiteral("131072")) &&
+          curlArgs.contains(QStringLiteral("/tmp/checksums.txt")),
+          "public download follows HTTPS redirects with size and time bounds");
+    check(!curlArgs.contains(QStringLiteral("Authorization")) &&
+          !curlArgs.contains(QStringLiteral("gh")), "public download needs no GitHub credentials");
     QString reason;
     check(!EditorUpdates::isPackaged(&reason) && !reason.isEmpty(),
           "development test executable cannot be overwritten by a release");

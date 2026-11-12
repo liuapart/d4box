@@ -390,16 +390,14 @@ jobs:
           game workflow execution or game input is included.
 
           Changes in this release:
-          - Check for updates, download verified packages and restart into the new version.
-          - Add native Windows executable/installer and macOS application icons.
-          - Unify frameless dialogs and prevent accidental wheel edits in numeric inputs.
-          - Refine input focus styling and dialog question icons.
+          - Public Release updates no longer require GitHub CLI or an authenticated account.
+          - Keep HTTPS-only downloads, SHA-256 verification, and tested replacement flow.
 
           - Windows x64: extract the entire ZIP or use the per-user Inno Setup installer.
           - macOS 13+: choose arm64 for Apple Silicon or x64 for Intel; ZIP and real DMG supplied.
-          - Editor updates can be checked from More; because this repository is private, the
-            user's machine needs an authenticated GitHub CLI (`gh auth login`) for downloads.
-            Existing builds gain this feature only after manually installing this release.
+          - Editor updates can be checked from More without GitHub CLI or login. Versions
+            before this release may still require `gh`; install this release manually once
+            if the older editor cannot check for updates.
           - Windows packages are unsigned; macOS apps are ad-hoc signed, not Developer-ID signed/notarized.
             SmartScreen/Gatekeeper may block first launch. No signing secrets are used.
           - Qt 6.11.3 LGPL/GPL and bundled third-party notices are included in each package;

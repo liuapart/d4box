@@ -12,7 +12,6 @@
 #include <QJsonObject>
 #include <QLabel>
 #include <QProcess>
-#include <QProcessEnvironment>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -26,32 +25,21 @@
 #include <QVBoxLayout>
 
 namespace {
-constexpr auto apiPath = "repos/liuapart/d4box/releases?per_page=100";
+constexpr auto apiUrl = "https://api.github.com/repos/liuapart/d4box/releases?per_page=100";
 constexpr auto releasePrefix = "https://github.com/liuapart/d4box/releases/download/";
 constexpr qint64 maximumPackageBytes = 600LL * 1024 * 1024;
 
 QString downloadUrl(const QString &tag, const QString &name) {
     return QString::fromLatin1(releasePrefix) + tag + QLatin1Char('/') + name;
 }
-QStringList releaseDownloadArgs(const QString &tag, const QString &name, const QString &directory) {
-    return {QStringLiteral("release"), QStringLiteral("download"), tag,
-            QStringLiteral("--repo"), QStringLiteral("liuapart/d4box"),
-            QStringLiteral("--pattern"), name, QStringLiteral("--dir"), directory};
-}
-QString gitHubCli() {
-    const auto inPath = QStandardPaths::findExecutable(QStringLiteral("gh"));
-    if (!inPath.isEmpty()) return inPath;
+QString curlExecutable() {
 #ifdef Q_OS_MACOS
-    for (const auto &path : {QStringLiteral("/opt/homebrew/bin/gh"), QStringLiteral("/usr/local/bin/gh")})
-        if (QFileInfo(path).isExecutable()) return path;
+    return QStringLiteral("/usr/bin/curl");
 #elif defined(Q_OS_WIN)
-    for (const auto &root : {qEnvironmentVariable("ProgramFiles"),
-                             qEnvironmentVariable("LOCALAPPDATA") + QStringLiteral("/Programs")}) {
-        const auto path = QDir(root).filePath(QStringLiteral("GitHub CLI/gh.exe"));
-        if (QFileInfo(path).isExecutable()) return path;
-    }
+    return QDir(qEnvironmentVariable("SystemRoot")).filePath(QStringLiteral("System32/curl.exe"));
+#else
+    return QStandardPaths::findExecutable(QStringLiteral("curl"));
 #endif
-    return {};
 }
 QString installRoot() {
 #ifdef Q_OS_MACOS
@@ -151,6 +139,19 @@ QByteArray EditorUpdates::expectedHash(const QByteArray &checksums, const QStrin
     return {};
 }
 
+QStringList EditorUpdates::publicDownloadArgs(const QString &url, const QString &outputPath,
+                                               qint64 maximumBytes, int timeoutSeconds) {
+    return {QStringLiteral("--disable"), QStringLiteral("--location"),
+            QStringLiteral("--fail"), QStringLiteral("--silent"),
+            QStringLiteral("--show-error"), QStringLiteral("--proto"), QStringLiteral("=https"),
+            QStringLiteral("--proto-redir"), QStringLiteral("=https"),
+            QStringLiteral("--header"), QStringLiteral("User-Agent: D4BoxEditor"),
+            QStringLiteral("--header"), QStringLiteral("Accept: application/vnd.github+json"),
+            QStringLiteral("--max-filesize"), QString::number(maximumBytes),
+            QStringLiteral("--max-time"), QString::number(timeoutSeconds),
+            QStringLiteral("--output"), outputPath, url};
+}
+
 bool EditorUpdates::isPackaged(QString *reason) {
     const auto root = installRoot();
 #ifdef Q_OS_MACOS
@@ -200,9 +201,6 @@ void EditorUpdateController::run(const QString &program, const QStringList &args
                                  int timeoutMs) {
     auto *job = new QProcess(this);
     process = job;
-    auto environment = QProcessEnvironment::systemEnvironment();
-    environment.insert(QStringLiteral("GH_HOST"), QStringLiteral("github.com"));
-    job->setProcessEnvironment(environment);
     connect(job, &QProcess::finished, this, [this, job, success](int exitCode, QProcess::ExitStatus status) {
         if (process != job) return;
         process = nullptr;
@@ -250,10 +248,9 @@ void EditorUpdateController::check(bool requested) {
     manual = requested;
     cancelled = false;
     busy = true;
-    const auto gh = gitHubCli();
-    if (gh.isEmpty()) {
-        fail(QStringLiteral("私有仓库更新需要 GitHub CLI。请安装 gh、运行 gh auth login，"
-                            "并确认当前账号可访问 liuapart/d4box。"));
+    const auto curl = curlExecutable();
+    if (!QFileInfo(curl).isExecutable()) {
+        fail(QStringLiteral("未找到系统 curl，无法访问公开的 GitHub Release。"));
         return;
     }
 #ifdef Q_OS_WIN
@@ -269,8 +266,8 @@ void EditorUpdateController::check(bool requested) {
         fail(QStringLiteral("此平台或架构没有编辑器更新包。"));
         return;
     }
-    run(gh, {QStringLiteral("api"), QString::fromLatin1(apiPath)},
-        [this, pattern](const QByteArray &json) {
+    run(curl, EditorUpdates::publicDownloadArgs(QString::fromLatin1(apiUrl),
+        QStringLiteral("-"), 2 * 1024 * 1024, 30), [this, pattern](const QByteArray &json) {
         if (json.size() > 2 * 1024 * 1024) { fail(QStringLiteral("发布列表过大。")); return; }
         QString error;
         release = EditorUpdates::newest(json, QCoreApplication::applicationVersion(), pattern, &error);
@@ -330,10 +327,9 @@ void EditorUpdateController::download() {
     assetPath = QDir(stageRoot).filePath(release->assetName);
     setProgress(QStringLiteral("正在下载校验清单…"));
     const auto sumsPath = QDir(stageRoot).filePath(QStringLiteral("SHA256SUMS.txt"));
-    const auto gh = gitHubCli();
-    const auto tag = QStringLiteral("editor-v") + release->version;
-    run(gh, releaseDownloadArgs(tag, QStringLiteral("SHA256SUMS.txt"), stageRoot),
-        [this, sumsPath, gh, tag](const QByteArray &) {
+    const auto curl = curlExecutable();
+    run(curl, EditorUpdates::publicDownloadArgs(release->checksumsUrl, sumsPath, 128 * 1024, 120),
+        [this, sumsPath, curl](const QByteArray &) {
         QFile sums(sumsPath);
         if (!sums.open(QIODevice::ReadOnly) || sums.size() > 128 * 1024 ||
             EditorUpdates::expectedHash(sums.readAll(), release->assetName).isEmpty()) {
@@ -342,7 +338,8 @@ void EditorUpdateController::download() {
         }
         setProgress(QStringLiteral("正在下载 %1…").arg(release->assetName));
         downloadTimer.start();
-        run(gh, releaseDownloadArgs(tag, release->assetName, stageRoot),
+        run(curl, EditorUpdates::publicDownloadArgs(release->assetUrl, assetPath,
+                maximumPackageBytes, 1200),
             [this, sumsPath](const QByteArray &) {
             downloadTimer.stop();
             QFile sums(sumsPath), asset(assetPath);
@@ -466,11 +463,8 @@ bool EditorUpdateController::launchReplacement(QString *error) {
 
 void EditorUpdateController::fail(const QString &message) {
     const bool show = manual || progress;
-    const bool checkingRelease = stageRoot.isEmpty();
     finish();
-    if (show) EditorMessageBox::warning(owner, QStringLiteral("更新失败"),
-        message + (checkingRelease ? QStringLiteral("\n此仓库为私有仓库，请运行 gh auth status 检查账号及仓库权限。")
-                                   : QString{}));
+    if (show) EditorMessageBox::warning(owner, QStringLiteral("更新失败"), message);
 }
 void EditorUpdateController::finish() {
     busy = false;
