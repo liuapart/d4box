@@ -1,5 +1,9 @@
 #include "EditorTheme.h"
 #include <QApplication>
+#include <QAbstractItemView>
+#include <QAbstractSpinBox>
+#include <QComboBox>
+#include <QLineEdit>
 #include <QImageReader>
 #include <QSvgRenderer>
 #include <QAbstractScrollArea>
@@ -14,8 +18,45 @@
 #include <QProxyStyle>
 #include <QStyleFactory>
 #include <QStyleOption>
+#include <QWheelEvent>
 
 namespace {
+// Value controls never consume scrolling as an edit, even when focused.
+// Forward to the surrounding form so the gesture does not stall over a field.
+class ValueWheelGuard final : public QObject {
+public:
+    explicit ValueWheelGuard(QWidget *box) : QObject(box), box(box) {
+        box->installEventFilter(this);
+        // Spin boxes contain a line editor; wheel delivery can target it too.
+        for (auto *editor : box->findChildren<QLineEdit *>(QString(), Qt::FindDirectChildrenOnly))
+            editor->installEventFilter(this);
+    }
+protected:
+    bool eventFilter(QObject *, QEvent *event) override {
+        if (event->type() != QEvent::Wheel) return false;
+        if (auto *combo = qobject_cast<QComboBox *>(box); combo && combo->view()->isVisible())
+            return false; // The open list retains normal scrolling.
+        auto *wheel = static_cast<QWheelEvent *>(event);
+        for (auto *parent = box->parentWidget(); parent; parent = parent->parentWidget()) {
+            if (auto *area = qobject_cast<QAbstractScrollArea *>(parent)) {
+                auto *viewport = area->viewport();
+                QWheelEvent forwarded(viewport->mapFromGlobal(wheel->globalPosition()),
+                                      wheel->globalPosition(), wheel->pixelDelta(), wheel->angleDelta(),
+                                      wheel->buttons(), wheel->modifiers(), wheel->phase(),
+                                      wheel->inverted(), wheel->source(), wheel->pointingDevice());
+                QApplication::sendEvent(viewport, &forwarded);
+                // The viewport has handled propagation; do not scroll twice.
+                event->accept();
+                return true;
+            }
+        }
+        event->ignore();
+        return true;
+    }
+private:
+    QWidget *box;
+};
+
 // Keep the scrollbar's hit area and layout gutter intact while hiding its paint.
 // Unlike changing scroll policies, this never reflows the form or steals wheel input.
 class AutoHideScrollBar final : public QObject {
@@ -86,6 +127,12 @@ public:
     ControlsStyle() : QProxyStyle(QStyleFactory::create(QStringLiteral("Fusion"))) {}
     void polish(QWidget *widget) override {
         QProxyStyle::polish(widget);
+        if (qobject_cast<QComboBox *>(widget) || qobject_cast<QAbstractSpinBox *>(widget)) {
+            if (!widget->property("d4boxValueWheelGuard").toBool()) {
+                widget->setProperty("d4boxValueWheelGuard", true);
+                new ValueWheelGuard(widget);
+            }
+        }
         if (auto *bar = qobject_cast<QScrollBar *>(widget)) {
             if (!bar->property("d4boxAutoHide").toBool()) {
                 bar->setProperty("d4boxAutoHide", true);
@@ -96,6 +143,10 @@ public:
     int styleHint(StyleHint hint, const QStyleOption *option = nullptr,
                   const QWidget *widget = nullptr, QStyleHintReturn *data = nullptr) const override {
         if (hint == SH_ComboBox_Popup || hint == SH_ScrollBar_Transient) return 0;
+        // Scrolling a form must not change even a focused combo's value.
+        // Also keep Qt's own wheel-to-selection behavior disabled; popup item
+        // views retain normal scrolling independently of this style hint.
+        if (hint == SH_ComboBox_AllowWheelScrolling) return 0;
         return QProxyStyle::styleHint(hint, option, widget, data);
     }
     void drawPrimitive(PrimitiveElement element, const QStyleOption *option, QPainter *p,
@@ -144,13 +195,13 @@ QToolBar#commandBar { background:#20323F; border:1px solid #435764; border-radiu
 QToolBar::separator { background:#3A4D59; width:1px; margin:8px 7px; }
 QLabel#brand { color:#71F4DE; font-size:14px; font-weight:700; padding:0 8px 0 2px; }
 QLabel#saveState { color:#C1D2DC; font-size:11px; padding:3px 5px; background:#2B3E4B; border-radius:5px; }
-QWidget#stepsPanel, QDialog#pointNameDialog { background:transparent; }
+QWidget#stepsPanel, QDialog[d4boxFrameless=true] { background:transparent; }
 QFrame#panelSurface { background:#111A23; border:1px solid #435764; border-radius:12px; }
 QWidget#panelTitleBar { background:transparent; }
 QToolButton#panelClose { background:transparent; border:1px solid transparent; padding:0; }
 QToolButton#panelClose:hover { background:#304A55; border-color:#486775; }
 QToolButton#panelClose:focus { border-color:#71F4DE; }
-QDialog, QMessageBox, QTabWidget::pane { background:#111A23; }
+QDialog, QTabWidget::pane { background:#111A23; }
 QTabWidget::pane { border:0; border-top:1px solid #30424F; }
 QScrollArea, QScrollArea > QWidget > QWidget { background:#111A23; border:0; }
 QLabel[role=heading] { color:#E8F0F5; font-size:14px; font-weight:600; padding:2px 0 4px; }
@@ -188,9 +239,10 @@ QComboBox QAbstractItemView { background:#1B2B37; border:1px solid #52717D; padd
 QComboBox QAbstractItemView::item { min-height:30px; padding:2px 10px; border-radius:4px; }
 QComboBox QAbstractItemView::item:hover { background:#2A424D; }
 QComboBox QAbstractItemView::item:selected { background:#295047; color:#91F5E0; }
-QSpinBox, QDoubleSpinBox { padding-right:30px; }
-QSpinBox::up-button, QDoubleSpinBox::up-button { subcontrol-origin:border; subcontrol-position:top right; width:25px; border-left:1px solid #304552; border-top-right-radius:6px; background:#203441; }
-QSpinBox::down-button, QDoubleSpinBox::down-button { subcontrol-origin:border; subcontrol-position:bottom right; width:25px; border-left:1px solid #304552; border-bottom-right-radius:6px; background:#203441; }
+/* Reserve a separate button strip outside the input frame so focus never bleeds around it. */
+QSpinBox, QDoubleSpinBox { margin-right:26px; border-top-right-radius:0; border-bottom-right-radius:0; }
+QSpinBox::up-button, QDoubleSpinBox::up-button { subcontrol-origin:margin; subcontrol-position:top right; width:25px; border:1px solid #3C5261; border-left:0; border-bottom-color:#304552; border-top-right-radius:6px; background:#203441; }
+QSpinBox::down-button, QDoubleSpinBox::down-button { subcontrol-origin:margin; subcontrol-position:bottom right; width:25px; border:1px solid #3C5261; border-left:0; border-top:0; border-bottom-right-radius:6px; background:#203441; }
 QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover, QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover { background:#304D56; }
 QSpinBox::up-arrow, QDoubleSpinBox::up-arrow, QSpinBox::down-arrow, QDoubleSpinBox::down-arrow { width:10px; height:8px; }
 QSpinBox::up-arrow, QDoubleSpinBox::up-arrow { image:url(:/theme/up.svg); }
@@ -205,6 +257,13 @@ QScrollBar::handle:horizontal:hover { background:#7DA89F; }
 QScrollBar::handle:horizontal:pressed { background:#71F4DE; }
 QScrollBar::add-line, QScrollBar::sub-line { width:0; height:0; border:0; background:none; }
 QScrollBar::add-page, QScrollBar::sub-page { background:none; }
+QTreeView { background:#15222D; alternate-background-color:#1B2B37; border:1px solid #304754; selection-background-color:#295047; selection-color:#AEF9E9; }
+QTreeView::item { min-height:28px; }
+QHeaderView::section { background:#20323F; color:#CFDFE8; border:1px solid #304754; padding:5px; }
+QPlainTextEdit { background:#15222D; border:1px solid #304754; }
+QProgressBar { background:#15222D; border:1px solid #3C5261; border-radius:5px; min-height:10px; }
+QProgressBar::chunk { background:#71F4DE; border-radius:4px; }
+QLabel#fileError { color:#F1C27A; }
 QListWidget { background:#15222D; border:1px solid #304754; border-radius:7px; outline:0; }
 QListWidget::item { padding:10px; border-bottom:1px solid #243744; }
 QListWidget::item:hover { background:#203641; }

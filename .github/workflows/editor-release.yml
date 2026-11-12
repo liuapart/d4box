@@ -53,7 +53,8 @@ jobs:
           python -m unittest discover -s scripts/tests -v
           bash -n app/ahk/tests/run.sh
           python -Werror scripts/package_editor_windows.py --self-test
-          python -m py_compile scripts/package_editor_windows.py scripts/package_editor_macos.py
+          python -m py_compile scripts/package_editor_windows.py scripts/package_editor_macos.py scripts/test_editor_updater_macos.py scripts/generate_editor_icons.py
+          sh -n app/editor/resources/update/replace-macos.sh
           git diff --check
       - name: Prepare pinned Qt sources, licenses and third-party notices
         env:
@@ -187,6 +188,7 @@ jobs:
             --licenses-dir .runtime/editor/release-inputs/licenses \
             --output-dir .runtime/editor/dist-macos
           python scripts/check_editor_cli.py .runtime/editor/dist-macos/D4BoxEditor.app/Contents/MacOS/D4BoxEditor
+          python scripts/test_editor_updater_macos.py --app .runtime/editor/dist-macos/D4BoxEditor.app
       - name: Create real DMG and verify extracted ZIP and mounted DMG
         run: |
           set -euo pipefail
@@ -387,8 +389,17 @@ jobs:
           Standalone C++ / Qt Widgets editor only. Edits draft JSON; no AHK runtime,
           game workflow execution or game input is included.
 
+          Changes in this release:
+          - Check for updates, download verified packages and restart into the new version.
+          - Add native Windows executable/installer and macOS application icons.
+          - Unify frameless dialogs and prevent accidental wheel edits in numeric inputs.
+          - Refine input focus styling and dialog question icons.
+
           - Windows x64: extract the entire ZIP or use the per-user Inno Setup installer.
           - macOS 13+: choose arm64 for Apple Silicon or x64 for Intel; ZIP and real DMG supplied.
+          - Editor updates can be checked from More; because this repository is private, the
+            user's machine needs an authenticated GitHub CLI (`gh auth login`) for downloads.
+            Existing builds gain this feature only after manually installing this release.
           - Windows packages are unsigned; macOS apps are ad-hoc signed, not Developer-ID signed/notarized.
             SmartScreen/Gatekeeper may block first launch. No signing secrets are used.
           - Qt 6.11.3 LGPL/GPL and bundled third-party notices are included in each package;
@@ -412,5 +423,7 @@ jobs:
           if local != remote:
               raise SystemExit('Remote draft asset set/sizes differ; leaving release unpublished.')
           PY
-          gh release edit "$TAG" --draft=false --prerelease="$PRERELEASE" --latest=false \
+          latest=false
+          if [ "$PRERELEASE" = false ]; then latest=true; fi
+          gh release edit "$TAG" --draft=false --prerelease="$PRERELEASE" --latest="$latest" \
             --title "D4Box Editor $RELEASE_VERSION" --notes-file release-notes.md

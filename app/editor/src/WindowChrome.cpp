@@ -32,6 +32,7 @@ WindowChrome::WindowChrome(QWidget *host, const QString &caption)
     auto *header = new QHBoxLayout(titleBar);
     header->setContentsMargins(6, 0, 0, 0);
     auto *title = new QLabel(caption, titleBar);
+    connect(host, &QWidget::windowTitleChanged, title, &QLabel::setText);
     title->setProperty("role", QStringLiteral("heading"));
     title->setAttribute(Qt::WA_TransparentForMouseEvents);
     header->addWidget(title);

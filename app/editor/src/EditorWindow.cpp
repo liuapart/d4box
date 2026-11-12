@@ -1,6 +1,7 @@
 #include "EditorWindow.h"
 #include "PointNameDialog.h"
 #include "EditorTheme.h"
+#include "EditorUpdates.h"
 #include "NativeOverlay.h"
 #include "OverlayLayer.h"
 #include "WorkflowPanel.h"
@@ -12,17 +13,15 @@
 #include <QComboBox>
 #include <QCryptographicHash>
 #include <QDir>
-#include <QFileDialog>
 #include <QFileInfo>
 #include <QImageReader>
-#include <QInputDialog>
 #include <QJsonArray>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
-#include <QMessageBox>
+#include "EditorDialogs.h"
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPushButton>
@@ -59,20 +58,7 @@ class SnapshotCommand final : public QUndoCommand {
     QJsonObject before, after;
     std::function<void(const QJsonObject &)> apply;
 };
-QIcon appIcon() {
-    QPixmap icon(64, 64);
-    icon.fill(Qt::transparent);
-    QPainter p(&icon);
-    p.setRenderHint(QPainter::Antialiasing);
-    p.setBrush(QColor(QStringLiteral("#20323F")));
-    p.setPen(Qt::NoPen);
-    p.drawRoundedRect(QRectF(3, 3, 58, 58), 12, 12);
-    p.setPen(QPen(QColor(QStringLiteral("#71F4DE")), 3));
-    p.drawRect(QRectF(17, 17, 30, 30));
-    p.drawLine(QPointF(32, 11), QPointF(32, 53));
-    p.drawLine(QPointF(11, 32), QPointF(53, 32));
-    return QIcon(icon);
-}
+QIcon appIcon() { return QIcon(QStringLiteral(":/brand/app-icon.svg")); }
 } // namespace
 
 EditorWindow::EditorWindow(WorkflowDocument input, QString folder, QImage image, int screen)
@@ -89,6 +75,9 @@ EditorWindow::EditorWindow(WorkflowDocument input, QString folder, QImage image,
     qApp->installEventFilter(this);
     undo = new QUndoStack(this);
     undo->setUndoLimit(200);
+    updates = new EditorUpdateController(this, [this] { return mayDiscard(); },
+        [this] { exitApproved = true; close(); },
+        [this] { return document.filePath; });
     overlay = new OverlayLayer(&document, screenIndex, image, this);
     shortcuts = new NativeShortcuts(this);
     panel = new WorkflowPanel(
@@ -104,11 +93,11 @@ EditorWindow::EditorWindow(WorkflowDocument input, QString folder, QImage image,
         invalidateReference();
     };
     panel->confirmReference = [this] {
-        if (QMessageBox::question(panel, QStringLiteral("人工确认参考区"),
+        if (EditorMessageBox::question(panel, QStringLiteral("人工确认参考区"),
                                   QStringLiteral("请确认有效区域已排除标题栏和黑边，点位及背包与当前界面吻合"
                                                  "。\n这只记录参考尺寸，不代表游戏验证成功。"),
-                                  QMessageBox::Yes | QMessageBox::Cancel,
-                                  QMessageBox::Cancel) != QMessageBox::Yes)
+                                  EditorMessageBox::Yes | EditorMessageBox::Cancel,
+                                  EditorMessageBox::Cancel) != EditorMessageBox::Yes)
             return;
         mutate(QStringLiteral("人工确认参考尺寸"), [this] {
             const auto size = overlay->referencePixelSize();
@@ -226,8 +215,9 @@ EditorWindow::EditorWindow(WorkflowDocument input, QString folder, QImage image,
     menu->addAction(undo->createRedoAction(this, QStringLiteral("重做")));
     option(QStringLiteral("校验结构与静态前提"), [this] { showValidation(); });
     option(QStringLiteral("隐藏编辑控件 · Ctrl+Alt+P"), [this] { toggleControls(); });
+    option(QStringLiteral("检查更新…"), [this] { checkUpdates(); });
     option(QStringLiteral("更换本地底图…"), [this] {
-        const auto file = QFileDialog::getOpenFileName(this, QStringLiteral("仅作为本地测试底图"), {},
+        const auto file = EditorFileDialog::getOpenFileName(this, QStringLiteral("仅作为本地测试底图"), {},
                                                        QStringLiteral("图片 (*.png *.jpg *.jpeg)"));
         if (file.isEmpty())
             return;
@@ -235,7 +225,7 @@ EditorWindow::EditorWindow(WorkflowDocument input, QString folder, QImage image,
         reader.setAutoTransform(true);
         const auto image = reader.read();
         if (image.isNull()) {
-            QMessageBox::warning(this, QStringLiteral("读取失败"), reader.errorString());
+            EditorMessageBox::warning(this, QStringLiteral("读取失败"), reader.errorString());
             return;
         }
         overlay->setBackground(image);
@@ -266,7 +256,7 @@ EditorWindow::EditorWindow(WorkflowDocument input, QString folder, QImage image,
         });
     }
     option(QStringLiteral("快捷键与边界说明"), [this] {
-        QMessageBox::information(
+        EditorMessageBox::information(
             this, QStringLiteral("编辑器快捷键"),
             QStringLiteral(
                 "Ctrl+Alt+P（Mac: "
@@ -317,7 +307,7 @@ EditorWindow::EditorWindow(WorkflowDocument input, QString folder, QImage image,
         WorkflowDocument next;
         QString error;
         if (!next.load(path, &error)) {
-            QMessageBox::warning(this, QStringLiteral("读取失败"), error);
+            EditorMessageBox::warning(this, QStringLiteral("读取失败"), error);
             refreshCatalog();
             return;
         }
@@ -415,6 +405,7 @@ void EditorWindow::start() {
         status->setToolTip(shortcuts->error() +
                            QStringLiteral("\n全隐藏模式将在 10 秒后恢复，亦可从托盘召回。"));
 }
+void EditorWindow::checkUpdates(bool manual) { updates->check(manual); }
 void EditorWindow::renamePoint(const QString &id) {
     if (preview || operate->isChecked() || QApplication::activeModalWidget()) return;
     QString current;
@@ -455,7 +446,7 @@ void EditorWindow::showPointMenu(const QString &id, const QPoint &globalPosition
         if (document.data.value(QStringLiteral("id")) != documentId || preview || operate->isChecked()) return;
         QString error;
         mutate(QStringLiteral("删除点位"), [this, id, &error] { document.removePoint(id, &error); });
-        if (!error.isEmpty()) QMessageBox::information(this, QStringLiteral("点位仍被使用"), error);
+        if (!error.isEmpty()) EditorMessageBox::information(this, QStringLiteral("点位仍被使用"), error);
     }, Qt::QueuedConnection);
     connect(menu, &QMenu::aboutToHide, menu, &QObject::deleteLater);
     menu->popup(globalPosition);
@@ -660,7 +651,7 @@ void EditorWindow::newDocument(bool useTemplate) {
 void EditorWindow::openDocument() {
     if (!mayDiscard())
         return;
-    const auto path = QFileDialog::getOpenFileName(this, QStringLiteral("打开配置 JSON"), directory,
+    const auto path = EditorFileDialog::getOpenFileName(this, QStringLiteral("打开配置 JSON"), directory,
                                                    QStringLiteral("流程 JSON (*.json)"));
     if (path.isEmpty()) {
         refreshCatalog();
@@ -669,7 +660,7 @@ void EditorWindow::openDocument() {
     WorkflowDocument next;
     QString error;
     if (!next.load(path, &error)) {
-        QMessageBox::warning(this, QStringLiteral("读取失败"), error);
+        EditorMessageBox::warning(this, QStringLiteral("读取失败"), error);
         return;
     }
     changeDocument(std::move(next), QFileInfo(path).canonicalPath());
@@ -677,7 +668,7 @@ void EditorWindow::openDocument() {
 void EditorWindow::showValidation() {
     const auto structural = document.issues();
     const auto ready = document.issues(true);
-    QMessageBox box(this);
+    EditorMessageBox box(this);
     box.setWindowTitle(QStringLiteral("仅静态校验 · 不执行"));
     box.setText(structural.isEmpty() ? QStringLiteral("JSON 结构和引用有效")
                                      : QStringLiteral("结构存在 %1 个问题").arg(structural.size()));
@@ -695,13 +686,13 @@ bool EditorWindow::save(bool saveAs) {
         focused->clearFocus();
     const auto errors = document.issues();
     if (!errors.isEmpty()) {
-        QMessageBox::warning(this, QStringLiteral("无法保存非法结构"),
+        EditorMessageBox::warning(this, QStringLiteral("无法保存非法结构"),
                              errors.mid(0, 8).join(QLatin1Char('\n')));
         return false;
     }
     QString path = saveAs ? QString{} : document.filePath;
     if (path.isEmpty())
-        path = QFileDialog::getSaveFileName(this, QStringLiteral("保存草稿 JSON（不执行）"),
+        path = EditorFileDialog::getSaveFileName(this, QStringLiteral("保存草稿 JSON（不执行）"),
                                             QDir(directory.isEmpty() ? QDir::homePath() : directory)
                                                 .filePath(QStringLiteral("workflow.d4workflow.json")),
                                             QStringLiteral("流程 JSON (*.json)"));
@@ -710,19 +701,19 @@ bool EditorWindow::save(bool saveAs) {
     if (QFileInfo(path).suffix().isEmpty())
         path += QStringLiteral(".d4workflow.json");
     if (document.data.value(QStringLiteral("status")) == QStringLiteral("ready") && !saveAs &&
-        QMessageBox::warning(
+        EditorMessageBox::warning(
             this, QStringLiteral("将保存为草稿"),
             QStringLiteral("编辑器尚未接执行器，此文件会保存为 draft 而不是 ready。继续覆盖吗？"),
-            QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel) != QMessageBox::Yes)
+            EditorMessageBox::Yes | EditorMessageBox::Cancel, EditorMessageBox::Cancel) != EditorMessageBox::Yes)
         return false;
     const bool different =
         QFileInfo(path).absoluteFilePath() != QFileInfo(document.filePath).absoluteFilePath();
     bool overwrite = false;
     if (different && QFileInfo::exists(path)) {
-        if (QMessageBox::warning(this, QStringLiteral("覆盖已有文件"),
+        if (EditorMessageBox::warning(this, QStringLiteral("覆盖已有文件"),
                                  QStringLiteral("目标文件已存在。确认替换？\n%1").arg(path),
-                                 QMessageBox::Yes | QMessageBox::Cancel,
-                                 QMessageBox::Cancel) != QMessageBox::Yes)
+                                 EditorMessageBox::Yes | EditorMessageBox::Cancel,
+                                 EditorMessageBox::Cancel) != EditorMessageBox::Yes)
             return false;
         overwrite = true;
     }
@@ -733,17 +724,17 @@ bool EditorWindow::save(bool saveAs) {
         copy.data.insert(QStringLiteral("id"), QUuid::createUuid().toString(QUuid::WithoutBraces));
         copy.data.insert(QStringLiteral("revision"), 0);
         if (!copy.saveDraft(path, &error, overwrite)) {
-            QMessageBox::warning(this, QStringLiteral("保存失败"), error);
+            EditorMessageBox::warning(this, QStringLiteral("保存失败"), error);
             return false;
         }
         changeDocument(std::move(copy), QFileInfo(path).absolutePath());
     } else if (!document.saveDraft(path, &error, overwrite)) {
-        QMessageBox::warning(this, QStringLiteral("保存失败 · 修改仍在内存"), error);
+        EditorMessageBox::warning(this, QStringLiteral("保存失败 · 修改仍在内存"), error);
         return false;
     }
     directory = QFileInfo(document.filePath).absolutePath();
     if (!saveViewState())
-        QMessageBox::warning(
+        EditorMessageBox::warning(
             this, QStringLiteral("JSON 已保存"),
             QStringLiteral("配置已安全写入；本机裁剪记忆无法写入，下次打开请重新设置参考区。"));
     undo->setClean();
@@ -757,14 +748,14 @@ bool EditorWindow::mayDiscard() {
         focused->clearFocus();
     if (!document.dirty)
         return true;
-    auto response = QMessageBox::question(
+    auto response = EditorMessageBox::question(
         this, QStringLiteral("未保存修改"),
         QStringLiteral("保存“%1”的修改？放弃后未保存内容会丢失。\n保存仅写入草稿，不执行游戏操作。")
             .arg(document.data.value(QStringLiteral("name")).toString()),
-        QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, QMessageBox::Cancel);
-    if (response == QMessageBox::Save)
+        EditorMessageBox::Save | EditorMessageBox::Discard | EditorMessageBox::Cancel, EditorMessageBox::Cancel);
+    if (response == EditorMessageBox::Save)
         return save();
-    return response == QMessageBox::Discard;
+    return response == EditorMessageBox::Discard;
 }
 void EditorWindow::closeEvent(QCloseEvent *event) {
     if (!diagnosticClosing && !exitApproved && !mayDiscard()) {
@@ -1069,9 +1060,16 @@ QJsonObject EditorWindow::selfTest() {
                               Q_ARG(QString, QStringLiteral("#123456")));
     check(document.issues().isEmpty(), QStringLiteral("corrected color restores schema"));
     const int stepCount = document.data.value(QStringLiteral("steps")).toArray().size();
+    const auto beforeDeleteCancel = document.data;
+    QTimer::singleShot(120, this, [] {
+        if (auto *box = qobject_cast<EditorMessageBox *>(QApplication::activeModalWidget()))
+            box->findChild<QToolButton *>(QStringLiteral("panelClose"))->click();
+    });
+    panel->findChild<QPushButton *>(QStringLiteral("deleteStep"))->click();
+    check(document.data == beforeDeleteCancel, QStringLiteral("custom delete prompt close preserves all steps"));
     QTimer::singleShot(0, this, [] {
-        if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
-            box->button(QMessageBox::Yes)->click();
+        if (auto *box = qobject_cast<EditorMessageBox *>(QApplication::activeModalWidget()))
+            box->button(EditorMessageBox::Yes)->click();
     });
     panel->findChild<QPushButton *>(QStringLiteral("deleteStep"))->click();
     check(document.data.value(QStringLiteral("steps")).toArray().size() == stepCount - 1,
@@ -1192,6 +1190,28 @@ QJsonObject EditorWindow::selfTest() {
     loadViewState(stateFile);
     check(referenceCrop == QRectF(.05, .05, .9, .9) && document.data == beforeView,
           QStringLiteral("crop round-trip never changes shared workflow JSON"));
+    mutate(QStringLiteral("test unsaved dialog"), [this] { document.setName(QStringLiteral("Unsaved dialog test")); });
+    const auto unsaved = document.data;
+    QTimer::singleShot(120, this, [] {
+        if (auto *box = qobject_cast<EditorMessageBox *>(QApplication::activeModalWidget()))
+            box->button(EditorMessageBox::Cancel)->click();
+    });
+    check(!mayDiscard() && document.data == unsaved && document.dirty,
+          QStringLiteral("unsaved Cancel prevents exit and preserves draft"));
+    QTimer::singleShot(120, this, [] {
+        if (auto *box = qobject_cast<EditorMessageBox *>(QApplication::activeModalWidget()))
+            box->button(EditorMessageBox::Discard)->click();
+    });
+    check(mayDiscard() && document.data == unsaved,
+          QStringLiteral("unsaved Discard permits exit without a write"));
+    QTimer::singleShot(120, this, [] {
+        if (auto *box = qobject_cast<EditorMessageBox *>(QApplication::activeModalWidget()))
+            box->button(EditorMessageBox::Save)->click();
+    });
+    check(mayDiscard() && !document.dirty, QStringLiteral("unsaved Save completes existing save transaction"));
+    WorkflowDocument savedAfterPrompt;
+    check(savedAfterPrompt.load(document.filePath, &error) && savedAfterPrompt.data == document.data,
+          QStringLiteral("unsaved Save writes the requested draft contents"));
     return {{QStringLiteral("passed"), passed},
             {QStringLiteral("failed"), failed},
             {QStringLiteral("diagnostics"), diagnostics()}};

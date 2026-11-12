@@ -139,6 +139,10 @@ def main() -> None:
         run(qt / "bin/macdeployqt", app, "-no-plugins", "-no-codesign", "-verbose=1", *extra)
         resources = app / "Contents/Resources"
         resources.mkdir(exist_ok=True)
+        with (app / "Contents/Info.plist").open("rb") as stream:
+            icon_name = plistlib.load(stream).get("CFBundleIconFile")
+        if icon_name != "app-icon.icns" or not (resources / icon_name).is_file():
+            raise RuntimeError("macOS app icon is missing from the signed bundle.")
         (resources / "qt.conf").write_text("[Paths]\nPlugins = PlugIns\n", encoding="utf-8")
         (resources / "EDITOR-NOTICE.txt").write_text(
             "D4Box Editor: standalone C++ / Qt Widgets editor only.\n"
@@ -221,6 +225,7 @@ def main() -> None:
         "macho_dependency_audit": dependencies,
         "checks": {"external_absolute_dependencies": 0, "sdk_free_plugin_search": True,
                    "adhoc_signature": True, "native_cocoa_smoke": True, "window_render": True,
+                   "native_app_icon": True,
                    "png_and_jpeg_decode": True, "svg_theme_multiscale": True, "ui_interactions": True},
         "limitations": ["Not tested on a clean second Mac", "Not Developer-ID signed/notarized",
                         "No game execution tested"] +

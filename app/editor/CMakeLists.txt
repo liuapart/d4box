@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-set(D4BOX_RELEASE_VERSION "0.2.3" CACHE STRING "Editor release version (without tag prefix)")
+set(D4BOX_RELEASE_VERSION "0.2.4" CACHE STRING "Editor release version (without tag prefix)")
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+" D4BOX_NUMERIC_VERSION "${D4BOX_RELEASE_VERSION}")
 if(NOT D4BOX_NUMERIC_VERSION)
     message(FATAL_ERROR "D4BOX_RELEASE_VERSION must begin with X.Y.Z")
@@ -22,13 +22,29 @@ qt_standard_project_setup()
 qt_add_executable(D4BoxEditor MACOSX_BUNDLE
     src/main.cpp src/EditorWindow.cpp src/EditorWindow.h
     src/EditorTheme.cpp src/EditorTheme.h
+    src/EditorUpdates.cpp src/EditorUpdates.h
     src/WorkflowDocument.cpp src/WorkflowDocument.h
+    src/EditorDialogs.cpp src/EditorDialogs.h
     src/WindowChrome.cpp src/WindowChrome.h
     src/PointNameDialog.cpp src/PointNameDialog.h
     src/WorkflowPanel.cpp src/WorkflowPanel.h
     src/OverlayLayer.cpp src/OverlayLayer.h
     src/NativeOverlay.cpp src/NativeOverlay.h)
+if(APPLE)
+    target_sources(D4BoxEditor PRIVATE resources/brand/app-icon.icns)
+    set_source_files_properties(resources/brand/app-icon.icns PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+    set_target_properties(D4BoxEditor PROPERTIES MACOSX_BUNDLE_ICON_FILE "app-icon.icns")
+elseif(WIN32)
+    enable_language(RC)
+    target_sources(D4BoxEditor PRIVATE resources/brand/editor-icon.rc)
+    target_include_directories(D4BoxEditor PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/resources/brand")
+endif()
 target_link_libraries(D4BoxEditor PRIVATE Qt6::Widgets Qt6::Svg)
+qt_add_resources(D4BoxEditor editor_brand PREFIX "/brand" BASE resources/brand
+    FILES resources/brand/app-icon.svg)
+qt_add_resources(D4BoxEditor editor_update_helpers PREFIX "/update" BASE resources/update
+    FILES resources/update/replace-macos.sh resources/update/replace-windows.ps1
+          resources/update/unpack-windows.ps1)
 qt_add_resources(D4BoxEditor editor_theme PREFIX "/theme" BASE resources/theme
     FILES resources/theme/down.svg resources/theme/up.svg resources/theme/check.svg)
 target_compile_definitions(D4BoxEditor PRIVATE
@@ -61,6 +77,23 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(D4BoxEditorUpdateTests tests/update_tests.cpp src/EditorUpdates.cpp
+        src/EditorUpdates.h src/EditorDialogs.cpp src/EditorDialogs.h src/WindowChrome.cpp
+        src/EditorTheme.cpp)
+    target_include_directories(D4BoxEditorUpdateTests PRIVATE src)
+    target_link_libraries(D4BoxEditorUpdateTests PRIVATE Qt6::Widgets Qt6::Svg)
+    qt_add_resources(D4BoxEditorUpdateTests update_test_images PREFIX "/theme" BASE resources/theme
+        FILES resources/theme/down.svg resources/theme/up.svg resources/theme/check.svg)
+    add_test(NAME editor-updates COMMAND D4BoxEditorUpdateTests)
+    set_tests_properties(editor-updates PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 15)
+    add_executable(D4BoxEditorDialogTests tests/dialog_tests.cpp
+        src/EditorDialogs.cpp src/EditorDialogs.h src/WindowChrome.cpp src/EditorTheme.cpp)
+    target_include_directories(D4BoxEditorDialogTests PRIVATE src)
+    target_link_libraries(D4BoxEditorDialogTests PRIVATE Qt6::Widgets Qt6::Svg)
+    qt_add_resources(D4BoxEditorDialogTests dialog_test_images PREFIX "/theme" BASE resources/theme
+        FILES resources/theme/down.svg resources/theme/up.svg resources/theme/check.svg)
+    add_test(NAME editor-dialogs COMMAND D4BoxEditorDialogTests)
+    set_tests_properties(editor-dialogs PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 15)
     add_executable(D4BoxEditorThemeTests tests/theme_tests.cpp src/EditorTheme.cpp)
     target_include_directories(D4BoxEditorThemeTests PRIVATE src)
     target_link_libraries(D4BoxEditorThemeTests PRIVATE Qt6::Widgets Qt6::Svg)

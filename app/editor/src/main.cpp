@@ -1,5 +1,6 @@
 #include "EditorWindow.h"
 #include "EditorTheme.h"
+#include "EditorUpdates.h"
 
 #include <QApplication>
 #include <QCommandLineParser>
@@ -123,6 +124,7 @@ int main(int argc, char **argv) {
           QStringLiteral("本地 PNG/JPEG 测试底图，不写入配置"),
           QStringLiteral("image")},
          {{QStringLiteral("overlay")}, QStringLiteral("透明桌面覆盖（默认）；与底图互斥")},
+         {{QStringLiteral("no-update-check")}, QStringLiteral("本次启动不自动检查编辑器更新")},
          {{QStringLiteral("screen")},
           QStringLiteral("0 起始的显示器索引"),
           QStringLiteral("index"),
@@ -238,10 +240,15 @@ int main(int argc, char **argv) {
     }
     EditorWindow window(std::move(document), directory, background, screen);
     window.start();
+    if (!diagnosticModes && background.isNull() && !parser.isSet(QStringLiteral("no-update-check")) &&
+        EditorUpdates::isPackaged())
+        QTimer::singleShot(1200, &window, [&window] { window.checkUpdates(false); });
     if (parser.isSet(QStringLiteral("smoke-test"))) {
         QString resourceError;
         if (!EditorTheme::validateResources(&resourceError))
             return reportError(resourceError, 6);
+        if (QIcon(QStringLiteral(":/brand/app-icon.svg")).pixmap(64, 64).isNull())
+            return reportError(QStringLiteral("编辑器图标资源缺失。"), 6);
         window.showSteps();
         QTimer::singleShot(250, &window, &EditorWindow::closePreview);
     }

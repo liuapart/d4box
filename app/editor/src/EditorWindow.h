@@ -15,6 +15,7 @@ class QAction;
 class WorkflowPanel;
 class OverlayLayer;
 class NativeShortcuts;
+class EditorUpdateController;
 
 // A small top-level toolbar controls separate passive and interactive windows.
 // It is deliberately NOT a full-screen input-receiving QWidget.
@@ -24,6 +25,7 @@ class EditorWindow : public QMainWindow {
                           int screenIndex = 0);
     ~EditorWindow() override;
     void start();
+    void checkUpdates(bool manual = true);
     void showSteps();
     void closePreview();
     QImage renderPreview(bool showPanel = true);
@@ -63,6 +65,7 @@ class EditorWindow : public QMainWindow {
     QRectF referenceCrop{0, 0, 1, 1};
     OverlayLayer *overlay;
     NativeShortcuts *shortcuts;
+    EditorUpdateController *updates;
     WorkflowPanel *panel;
     QComboBox *profiles;
     QLineEdit *name;

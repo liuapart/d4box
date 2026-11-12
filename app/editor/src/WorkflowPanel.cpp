@@ -14,14 +14,13 @@
 #include <QSizeGrip>
 #include <QToolButton>
 #include <QHBoxLayout>
-#include <QInputDialog>
 #include <QJsonArray>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QStyledItemDelegate>
 #include <QMenu>
-#include <QMessageBox>
+#include "EditorDialogs.h"
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QScrollArea>
@@ -415,12 +414,12 @@ void WorkflowPanel::buildSteps() {
         const int i = steps->currentRow();
         if (i < 0)
             return;
-        if (QMessageBox::question(this, QStringLiteral("删除步骤"),
+        if (EditorMessageBox::question(this, QStringLiteral("删除步骤"),
                                   QStringLiteral("删除第 %1 步“%2”？可通过撤销恢复；不删除点位。")
                                       .arg(i + 1)
                                       .arg(stepName->text()),
-                                  QMessageBox::Yes | QMessageBox::Cancel,
-                                  QMessageBox::Cancel) != QMessageBox::Yes)
+                                  EditorMessageBox::Yes | EditorMessageBox::Cancel,
+                                  EditorMessageBox::Cancel) != EditorMessageBox::Yes)
             return;
         mutate(QStringLiteral("删除步骤"), [this, i] {
             auto s = doc->data.value(QStringLiteral("steps")).toArray();
@@ -539,7 +538,7 @@ void WorkflowPanel::buildPoints() {
         QString error;
         mutate(QStringLiteral("删除点位"), [this, id, &error] { doc->removePoint(id, &error); });
         if (!error.isEmpty())
-            QMessageBox::information(this, QStringLiteral("点位仍被使用"), error);
+            EditorMessageBox::information(this, QStringLiteral("点位仍被使用"), error);
     });
 }
 
@@ -652,7 +651,7 @@ void WorkflowPanel::buildChecks() {
             used |= s.toObject().value(QStringLiteral("checkId")) == id ||
                     s.toObject().value(QStringLiteral("completionCheckId")) == id;
         if (used) {
-            QMessageBox::information(this, QStringLiteral("检查仍被引用"),
+            EditorMessageBox::information(this, QStringLiteral("检查仍被引用"),
                                      QStringLiteral("请先移除步骤及入口的检查引用，再删除规则。"));
             return;
         }
@@ -754,7 +753,7 @@ void WorkflowPanel::buildLayout() {
     connect(apply, &QPushButton::clicked, this, [this] {
         const QRectF r(crop[0]->value(), crop[1]->value(), crop[2]->value(), crop[3]->value());
         if (r.width() < .05 || r.height() < .05 || r.right() > 1.00001 || r.bottom() > 1.00001) {
-            QMessageBox::warning(this, QStringLiteral("参考区不合法"),
+            EditorMessageBox::warning(this, QStringLiteral("参考区不合法"),
                                  QStringLiteral("宽高至少 0.05，且不得超出 0–1 范围。"));
             return;
         }

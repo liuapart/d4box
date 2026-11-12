@@ -265,6 +265,7 @@ SolidCompression=yes
 WizardStyle=modern
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={{app}}\D4BoxEditor.exe
+SetupIconFile={ROOT / 'app/editor/resources/brand/app-icon.ico'}
 CloseApplications=no
 RestartApplications=no
 [Files]
@@ -337,8 +338,33 @@ def package(args: argparse.Namespace) -> None:
             with zipfile.ZipFile(archive) as zipped:
                 if zipped.testzip() is not None:
                     raise RuntimeError("Corrupt ZIP.")
-                zipped.extractall(extracted)
+            run("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                "-File", ROOT / "app/editor/resources/update/unpack-windows.ps1",
+                "-Archive", archive, "-Destination", extracted)
             test_runtime(Path(extracted) / "D4BoxEditor", args.qt_version, args.version)
+            unsafe = Path(extracted) / "unsafe.zip"
+            with zipfile.ZipFile(unsafe, "w") as zipped:
+                zipped.writestr("D4BoxEditor/../escaped.txt", "unsafe")
+            rejected = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                 "-File", str(ROOT / "app/editor/resources/update/unpack-windows.ps1"),
+                 "-Archive", str(unsafe), "-Destination", str(Path(extracted) / "unsafe-extract")],
+                capture_output=True, timeout=30,
+            )
+            if rejected.returncode == 0 or (Path(extracted) / "escaped.txt").exists():
+                raise RuntimeError("Updater accepted an unsafe ZIP path.")
+            with tempfile.TemporaryDirectory(prefix="d4box-update-test-") as update_test:
+                previous = Path(update_test) / "D4BoxEditor"
+                shutil.copytree(Path(extracted) / "D4BoxEditor", previous)
+                env = clean_environment()
+                env["D4BOX_UPDATE_TEST_ONLY"] = "1"
+                run("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                    "-File", ROOT / "app/editor/resources/update/replace-windows.ps1",
+                    "-PidToWait", 99999999, "-InstallRoot", previous,
+                    "-Payload", Path(extracted) / "D4BoxEditor", "-Installed", 0, env=env)
+                if not previous.is_dir() or not Path(str(previous) + ".previous-99999999").is_dir():
+                    raise RuntimeError("Windows portable updater did not preserve the old payload.")
+                test_runtime(previous, args.qt_version, args.version)
         installer = None
         if args.iscc:
             script = staging / "editor.iss"
@@ -374,6 +400,7 @@ def package(args: argparse.Namespace) -> None:
             ],
             "checks": {"native_windows_smoke": True, "window_render": True,
                        "ui_interactions": True, "cli_regression": True, "svg_theme_multiscale": True,
+                       "updater_portable_swap": True, "updater_rejects_unsafe_zip": True,
                        "raster_dependency_contract": True,
                        "sdk_free_plugin_search": True, "relocated_zip_smoke": True,
                        "installer_install_launch_uninstall": installer is not None},
@@ -505,9 +532,19 @@ def self_test() -> None:
             self.assertIn("AppId={{5A093F70-B9CD-437B-B19E-F33CD284FB19}", script)
             self.assertIn("VersionInfoVersion=1.2.3.0", script)
             self.assertIn("PrivilegesRequired=lowest", script)
+            self.assertIn("SetupIconFile=", script)
             self.assertNotIn("[Run]", script)
             with self.assertRaises(ValueError):
                 inno_script(Path('bad"path'), Path("out"), "1.2.3", "editor")
+
+        def test_native_icon_assets(self):
+            brand = ROOT / "app/editor/resources/brand"
+            with (brand / "app-icon.ico").open("rb") as stream:
+                reserved, icon_type, count = struct.unpack("<HHH", stream.read(6))
+            self.assertEqual((reserved, icon_type), (0, 1))
+            self.assertGreaterEqual(count, 6)
+            self.assertIn('IDI_ICON1 ICON "app-icon.ico"',
+                          (brand / "editor-icon.rc").read_text(encoding="ascii"))
 
     result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(GuardTests))
     if not result.wasSuccessful():

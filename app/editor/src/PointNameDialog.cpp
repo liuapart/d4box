@@ -1,23 +1,17 @@
 #include "PointNameDialog.h"
-#include "WindowChrome.h"
 #include <QDialogButtonBox>
-#include <QGuiApplication>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QScreen>
 #include <QShowEvent>
 #include <QVBoxLayout>
-#include <QWindow>
 
 PointNameDialog::PointNameDialog(const QString &name, QScreen *screen, QWidget *parent)
-    : QDialog(parent, Qt::Tool), targetScreen(screen) {
+    : EditorDialog(parent, QStringLiteral("点位改名"), screen) {
     setObjectName(QStringLiteral("pointNameDialog"));
     setWindowTitle(QStringLiteral("点位改名"));
     setWindowModality(Qt::ApplicationModal);
     setMinimumWidth(360);
-    auto *chrome = new WindowChrome(this, QStringLiteral("点位改名"));
-    auto *body = chrome->contentLayout();
     auto *hint = new QLabel(QStringLiteral("名称会同步更新到步骤列表，不改变点位 ID。"), this);
     hint->setWordWrap(true);
     hint->setProperty("role", QStringLiteral("hint"));
@@ -50,17 +44,4 @@ void PointNameDialog::showEvent(QShowEvent *event) {
     QDialog::showEvent(event);
     input->setFocus(Qt::OtherFocusReason);
     input->selectAll();
-}
-
-void PointNameDialog::setVisible(bool visible) {
-    QDialog::setVisible(visible);
-    if (!visible) return;
-    // Center on the overlay's screen, not the toolbar; use logical pixels.
-    auto *display = targetScreen ? targetScreen.data() : QGuiApplication::primaryScreen();
-    if (display) {
-        if (windowHandle()) windowHandle()->setScreen(display);
-        const auto area = display->availableGeometry();
-        move(area.x() + (area.width() - width()) / 2,
-             area.y() + (area.height() - height()) / 2);
-    }
 }
