@@ -1,56 +1,34 @@
-# 架构与迁移边界
+# 架构与实现边界
 
-## 当前结构
-
-补充：`app/editor` 是独立 C++ / Qt Widgets 配置编辑器，包含透明穿透绘制层、局部交互窗、步骤/检查编排与草稿 JSON；没有接入下方 AHK 执行链。用法和分层见 [编辑器说明](../app/editor/README.md)，构建与实际包体见 [编辑器构建](editor-build-size.md)。
-
-项目由单个 AutoHotkey v2 进程运行：
+## 两条独立链路
 
 ```text
-scripts/start-windows.ps1
-  → app/ahk/D4Box.ahk
-      → 多语言与全局状态
-      → 配置、日志、窗口、定时器与宏控制
-      → GUI、技能、鼠标、装备识别与魔盒流程
-      → 血球识别与条件喝药
-      → 窗口诊断与热键
+Windows 主程序：scripts/start-windows.ps1 → app/ahk/D4Box.ahk
+  → GUI / 热键 / 战斗宏 / 背包识别 / 魔盒 INI 流程 / 血球 / 窗口诊断
+
+macOS + Windows 编辑器：app/editor/src/main.cpp → WorkflowDocument
+  → EditorWindow / WorkflowPanel / OverlayLayer / NativeOverlay
+  → app/editor/schema/workflow-v1.schema.json 对应的 draft JSON
 ```
 
-`app/ahk` 是主仓库普通文件，后续可直接修改。Git 不再记录 submodule，也不需要递归克隆。来源提交固定记录在第三方声明中，不自动跟随上游。
+AHK 是一个 AutoHotkey v2 进程，源码由主仓库直接维护；无需 submodule。编辑器是独立 C++17 / Qt 6 Widgets 程序，**没有与 AHK 运行时连接**。编辑器的 JSON 目前不被 AHK 读取；AHK 仍从内置 `app/ahk/config/cube-workflows.ini` 和用户 `app/ahk/.runtime/cube-workflows.ini` 执行魔盒配方。不要把编辑器静态 `--for-run` 校验理解为流程已经可运行。详见 [魔盒流程](cube-workflows.md) 与 [编辑器说明](../app/editor/README.md)。
 
-## 迁移范围
+## AHK 模块
 
-迁入上游全部 AHK 文件和现有测试。保留原模块划分、配置格式、按键行为和识别算法；将入口改名为 `D4Box.ahk`，更新窗口标题，合并窗口诊断热键，调整启动器和测试入口。
+- `D4Box.ahk` 依次加载语言、全局状态、工具、核心、GUI、功能模块和热键；语言表必须先于依赖它的全局变量。
+- `core/` 管理定时器、宏、窗口与热键；`functions/` 包含技能、鼠标、背包、魔盒、血球和诊断；`gui/` 是现有 Windows 控件界面。历史遗留的全局状态和 GUI/业务耦合仍存在，修改需关注加载顺序与配置兼容。
+- 魔盒已分为 `CubeProfiles.ahk` 的 INI 读写及校验、`InventoryScanner.ahk` 的格位扫描、`CubeRunner.ahk` 的通用动作执行与 `CubeWorkflowGUI.ahk` 的配置界面。自定义流程有视觉前置/结果检查；内置兼容流程仍保留原坐标和延时。
+- 设置与旧日志沿用入口目录；新诊断和自定义魔盒配置在该目录的 `.runtime`，测试目录使用独立配置。这些运行产物被 Git 忽略。
 
-原有宣传视频、宣传页构建代码、发布工作流及上游代理指令未引入。中文和英文 README 作为来源快照归档，不作为当前启动说明。
+## 编辑器模块
 
-设置和日志暂时沿用入口脚本目录，避免在迁入阶段同时重写配置系统。测试位于独立目录，保留配置隔离。新诊断日志写入入口旁的 `.runtime`。
+- `WorkflowDocument` 管理 JSON、稳定 ID、引用/结构校验和保存事务；`validate PATH` 可在无 GUI 环境运行，`--for-run` 只检查静态前提。
+- `OverlayLayer` 绘制全屏穿透标记及局部点位、背包拖柄；`NativeOverlay` 包含 macOS AppKit/Carbon 与 Windows Win32 适配；`EditorWindow` 和 `WorkflowPanel` 管理编辑、撤销、无边框窗口及草稿会话。
+- 截图底图只用于本机离线调试，不进 JSON。编辑器不会扫描真实背包、自动跟踪游戏窗口、执行点击或提供运行时 Debug。
+- 更新器访问公开 GitHub Release、下载当前平台文件及 SHA-256 清单，验证后交给退出后的替换脚本；它只更新编辑器。构建和发包见 [构建与包体](editor-build-size.md) 和 [发布流程](editor-release.md)。
 
-## 尚未解决的问题
+## 验证与来源
 
-- 仍有全局状态、GUI 与业务耦合。
-- 魔盒已拆成配置、背包扫描、统一执行器和 UI；支持颜色检查点，内置旧版流程仍保留固定坐标和延时。
-- 分辨率适配和取色仍依赖原有标定与布局。
-- 不具备通用 OCR、滚动搜索或多平台输入接口。
-- 迁入的血球测试缺少上游本地截图，完整回归需补充样本。
+Mac 的仓库检查、编辑器 CTest 和截图调试不能验证 AHK。编辑器 Windows/macOS CI 原生打包和启动也不能验证游戏输入、真实跨进程穿透、干净机器或最低系统版本。AHK 需在 Windows 跑加载、模拟流程与 GUI 冒烟测试；坐标、颜色和实际消耗动作仍需游戏内人工确认，见 [Windows 清单](windows-validation.md)。
 
-## 后续顺序
-
-先在 Windows 验证现有功能，建立行为基线，再拆分截图、识别、流程和输入模块。魔盒已共用一个输入执行器，并加入取消、超时、窗口检查和自定义颜色检查点；下一步增强图像定位和结果识别。
-
-跨分辨率定位先从客户区、DPI、面板参照位置入手；滚动搜索需要识别可见列表、检测页面变化、判定到底和超时。Mac 可用于离线样本分析，真实截图及输入仍须 Windows 验证。
-
-魔盒流程的完整模型与扩展入口见 [cube-workflows.md](cube-workflows.md)。
-
-## 独立编辑器实现
-
-最终选用 Qt Widgets/QPainter，而不是此前方案中的 Qt Quick/QML，以减小动态依赖。
-`WorkflowDocument` 只负责数据/校验/文件事务；`OverlayLayer` 负责全屏无输入绘制和局部拖柄；
-`NativeOverlay` 集中 macOS AppKit/Carbon 与 Windows Win32 适配；`EditorWindow`/`WorkflowPanel`
-管理会话和属性，通过撤销事务变更文档。编辑器不执行游戏动作、不提供识别扫描。
-
-当前存盘固定为 draft；原 INI 配方、GUI、热键及 AHK 单进程入口保持不变。
-JSON 执行器、编辑安全握手、窗口自动跟踪和运行时 Debug 不在此轮实现。
-
-GitHub Actions 仅在 `editor-v*` 标签触发编辑器三平台构建，所有构建与打包检查通过后才发布 Release；
-见 [Release 配置](editor-release.md)。没有把主程序纳入安装包。
+迁入的上游来源和许可证见 [第三方声明](../THIRD_PARTY_NOTICES.md)、`../LICENSES/` 与 `upstream/`。`docs/upstream` 是来源快照，不是本项目现行启动或发行说明。

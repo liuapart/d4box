@@ -5,22 +5,22 @@
 
 ## 触发与版本契约
 
-维护者将包含编辑器源码、打包脚本和工作流的提交准备好后，自行推送
-`editor-vX.Y.Z`，例如 `editor-v0.1.0`；预发布使用 `editor-v0.1.0-rc.1`。
-其他 tag 和普通分支 push 不触发。版本三个数字段不允许前导零，范围 0–65535；
+维护者将包含编辑器源码、打包脚本和工作流的提交准备好后，推送
+`editor-vX.Y.Z`；预发布可用 `editor-vX.Y.Z-rc.1`。
+工作流的标签过滤器匹配 `editor-v*`，prepare 再严格校验版本；不匹配版本格式的标签会触发但在 prepare 失败。其他 tag 和普通分支 push 不触发。版本三个数字段不允许前导零，范围 0–65535；
 不支持 `+build` 元数据。带后缀的版本标为 GitHub prerelease。
 
-CI 给 CMake 传入 `-DD4BOX_RELEASE_VERSION=0.1.0[-rc.1]`，**不在工作流中修改源码**。
-`app/editor/CMakeLists.txt` 需要接收这个字符串 cache 变量：
+CI 给 CMake 传入 `-DD4BOX_RELEASE_VERSION=<tag 去掉 editor-v 前缀>`，**不在工作流中修改源码**。
+`app/editor/CMakeLists.txt` 已接收这个字符串 cache 变量；未传入时默认 `0.2.6`：
 
 - `project(... VERSION ...)` 和 Windows / Apple 的数字版本字段使用去掉后缀的 `X.Y.Z`。
-- `D4BOX_EDITOR_VERSION`、`--version` 保留完整版本，包括 `-rc.1`；期望输出
-  `D4BoxEditor 0.1.0-rc.1`。
-- 本地不传入该变量时可以继续使用项目默认版本。
+- `D4BOX_EDITOR_VERSION`、`--version` 保留完整版本，包括 `-rc.1`；例如版本为
+  `0.2.6-rc.1` 时输出 `D4BoxEditor 0.2.6-rc.1`。
+- 本地不传入该变量时使用项目默认版本。
 - Windows GUI 子系统程序的 CLI 诊断需要在 `subprocess` 重定向 stdout/stderr 时正常输出。
 
 两个打包器都会检查实际 `--version`；CMake 忽略版本变量、CLI 无输出或仍然硬编码旧版本时
-发布会失败，而不是上传版本标错的包。编辑器源码和 CMake 契约由编辑器维护者实现。
+发布会失败，而不是上传版本标错的包。
 
 ## 构建矩阵
 
@@ -81,7 +81,7 @@ GitHub actions 固定完整 commit SHA，旁注相应 release tag；升级时应
 - 每个平台的 `*-report.json`：依赖审计、体积和打包器执行的验证结果。
 - `qtsvg-everywhere-src-6.11.3.tar.xz`：SVG 渲染库与插件对应的上游源码。
 - `qtbase-everywhere-src-6.11.3.tar.xz`：与动态 Qt 库对应的上游源代码归档。
-- `SHA256SUMS.txt`：以上所有文件的 SHA-256。
+- `SHA256SUMS.txt`：上述 11 个资产的 SHA-256；清单本身不列入自身。
 
 macOS DMG 内是真实 `.app` 和 `/Applications` 快捷方式，不是空壳安装器。
 源码归档和许可证之外没有其他非编辑器程序的下载。构建报告不是裸可执行文件体积，
@@ -108,12 +108,13 @@ Core / Gui / Widgets / Svg、平台与图像插件、MSVC 运行库仍保留。
 CI 仍在移除 SDK 搜索路径的环境中验证启动、SVG、渲染、UI、解压包与安装卸载。
 开发环境强制启用其他 Qt 渲染后端不在当前部署范围内。
 
-首次精简原生 Windows CI 通过前，体积减少仅按既有包的目录数据估算，不视为已验证发行包。
+实际包体应从对应 Release 的 `*-report.json` 和下载资产读取；不要沿用精简前的估算值。
 
 ## 许可与来源材料
 
-prepare job 下载 Qt 官方源代码归档，用固定 SHA-256
-`46de0710b594945a5d446ae44354daa386141c6903c53781b2ca547bc62f8f8f` 校验，
+prepare job 下载 Qt 官方源代码归档，分别用固定 SHA-256 校验 Qt Base
+`46de0710b594945a5d446ae44354daa386141c6903c53781b2ca547bc62f8f8f` 与 Qt SVG
+`9bdf6fa4b5a2d91c3eaa2edd12263fdff0ae19d0ac25d3c99946cd4189a07123`，
 保持源代码相对路径收集 `LICENSES`、LICENSE / COPYING / COPYRIGHT / NOTICE 文本和
 `qt_attribution.json`。每个应用包包含这些材料、项目已有 notices 和 `QT-SOURCE.txt`；
 macOS 位于 `.app/Contents/Resources/licenses`，Windows 位于 `licenses`。
@@ -130,15 +131,16 @@ macOS 位于 `.app/Contents/Resources/licenses`，Windows 位于 `licenses`。
 1. prepare：验证 tag，运行仓库静态 / Python 检查、打包器离线保护测试，准备许可证和源码。
 2. Windows、macOS arm64、macOS x64：全部 configure/build、CTest、打包和实际包启动验证。
 3. publish 显式 `needs: [prepare, macos, windows]`，不使用 `always()`，任一失败/取消都会阻止发布。
-4. 下载当前 run 的发行 artifact；严格核对六个二进制包、三个报告、一个源码归档，拒绝空文件、
+4. 下载当前 run 的发行 artifact；严格核对六个二进制包、三个报告、两个源码归档，拒绝空文件、
    缺失平台和额外文件；生成 SHA-256 清单。
 5. 创建 **draft**，上传文件并比较远端文件名/大小后才转为公开 Release。
    上传失败最多留下不公开的 draft。重跑可以替换同一 draft 的资产；已公开 Release 拒绝覆盖，
    应使用新 tag。意外多出的 draft 资产也阻止公开，维护者需检查后自行清理。
 
 构建 job 只有 `contents: read`，checkout 不持久化凭据；仅最终 publish job
-使用 `GITHUB_TOKEN` 的 `contents: write`。不把 editor tag 标为全仓库的 Latest，避免覆盖
-未来主应用的发行入口。仓库需要允许 GitHub Actions 运行，并允许最终 job 的写入权限；
+使用 `GITHUB_TOKEN` 的 `contents: write`。稳定版显式设置 `--latest=true`，预发布设置
+`--latest=false`；这会影响仓库全局 Latest 指向，但编辑器更新器不依赖该标记。
+仓库需要允许 GitHub Actions 运行，并允许最终 job 的写入权限；
 组织级限制仍可能阻止发布。没有自动修改 tag、自动提交或自动推送步骤。
 
 ## 测试与本地复现
@@ -152,8 +154,9 @@ python3 scripts/check_project.py
 python3 -m unittest discover -s scripts/tests -v
 bash -n app/ahk/tests/run.sh
 git diff --check
-actionlint .github/workflows/editor-release.yml
 ```
+
+已安装 `actionlint` 时，还可执行 `actionlint .github/workflows/editor-release.yml` 检查工作流语法；原生构建与发布结果仍以 GitHub Actions 为准。
 
 Windows helper 的离线测试覆盖 tag/数字版本约束、PE 架构与截断输入、SDK 路径越界/链接、许可缺失、
 Inno 模板安全约束；不能代替 Windows 原生验证。
@@ -176,8 +179,7 @@ macOS 打包器保留原有 Mach-O 依赖、rpath、架构裁剪、签名、原�
 检查签名并在清空 SDK 环境后启动两者。发布验证不依赖 `--overlay` 旧的“不支持”行为；
 CLI 契约由编辑器维护者同步 `check_editor_cli.py`；CTest / CLI 的新增案例也自动进入发布门禁。
 
-本次新增 release 参数不会改变原有本地 macOS 打包调用：`--licenses-dir` 与
-`--release-version` 可省略；但发行时二者都传入并强制校验。所有构建、SDK、包、
+本地 macOS 打包可省略 `--licenses-dir` 与 `--release-version`；发行时二者都传入并强制校验。所有构建、SDK、包、
 测试临时目录放在 `.runtime/editor` 或操作系统临时目录，不提交个人配置和截图。
 
 ## 明确限制
@@ -188,5 +190,4 @@ CLI 契约由编辑器维护者同步 `check_editor_cli.py`；CTest / CLI 的新
 - Inno Setup、编译器、GitHub runner 系统镜像和 aqt 的传递依赖不是完全可复现锁定；Qt 版本、
   Qt 源码及 Windows SDK SHA-256、aqt 版本和 actions SHA 固定。后续升级必须重新验证三平台。
 - 仅验证编辑器，不验证 Windows 游戏交互；没有 AHK smoke / workflow 执行，也不会发送游戏输入。
-- 本地语法和打包测试不等于 GitHub Actions 已成功运行。第一次真实 tag 的三平台执行与
-  Release 上传结果需要维护者在 GitHub 上确认；此实现不会自行创建 tag 来试发。
+- 本地语法和打包测试不等于对应标签的 GitHub Actions 已成功运行；每次发布都需核对三平台 job、publish job、公开状态和完整资产。工作流不会自行创建 tag。

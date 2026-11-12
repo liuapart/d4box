@@ -15,7 +15,7 @@
 - 窗口切换暂停、手动点击暂停、退出时释放按键、配置持久化和日志轮转。
 - d4box 窗口诊断：游戏在前台时按 **Ctrl+Alt+F8**，显示并记录客户区位置和尺寸。
 
-代码尚未完成本项目的 Windows 实测。内置嬗变保留旧版坐标、取色与延时；新流程支持颜色检查，但通用 OCR、跨布局定位和滚动找目标还没有实现。
+AHK 与游戏交互尚无本项目的真实 Windows/游戏内验收记录。内置嬗变保留旧版坐标、取色与延时；新流程支持颜色检查，但通用 OCR、跨布局定位和滚动找目标还没有实现。编辑器的 Windows CI 构建/启动测试不等于 AHK 或游戏验证。
 
 ## 目录
 
@@ -29,14 +29,15 @@ app/ahk/
   utils/          配置、日志、多语言
   config/         内置魔盒流程数据
   tests/          Windows 冒烟、流程与血球测试
-scripts/          Windows 启动器、Mac 项目检查
+app/editor/       独立 Qt 配置编辑器、Schema、模板与 CTest
+scripts/          启动器、开发/打包脚本与仓库检查
 docs/             架构、验证清单、上游文档快照
 LICENSES/         第三方许可文本
 ```
 
 ## Mac 开发
 
-需要 Git 和 Python 3.9+。普通克隆即可获得全部应用源码：
+需要 Git 和 Python 3.10+。普通克隆即可获得全部应用源码：
 
 ```sh
 git clone git@github.com:liuapart/d4box.git
@@ -62,7 +63,7 @@ Mac 上的检查覆盖仓库结构和 AHK 引用路径，不执行 Windows API�
 ./dev.sh -- ./workflows/example.d4workflow.json
 ```
 
-首次需要 Xcode Command Line Tools、Python 3.9+、CMake/Ninja（`brew install cmake ninja`）和 Qt SDK。
+首次需要 Xcode Command Line Tools、Python 3.10+、CMake/Ninja（`brew install cmake ninja`）和 Qt SDK。
 SDK 未安装时运行 `python3 scripts/fetch_editor_qt_macos.py`；启动脚本不会自动下载。
 `--demo` 使用本机忽略目录中的 `.runtime/editor/backgrounds/transmute-game-original.png`，图片不会随仓库分发。
 SDK 选择、参数及 Windows 入口见 [编辑器开发说明](app/editor/README.md#本地开发入口)。
@@ -120,5 +121,4 @@ bash app/ahk/tests/run.sh workflow
 - [构建、验证与实际包体](docs/editor-build-size.md)
 - [Tag 构建与 Release 安装包](docs/editor-release.md)：`editor-vX.Y.Z` 触发 Windows x64、Mac arm64/x64，全部成功才发布。
 
-发布包只含编辑器：Windows ZIP/安装 EXE，Mac ZIP/DMG；不包含 AHK 主程序。
-Windows 尚未签名、Mac 尚未做 Developer ID 公证；本地通过不等于三平台 Actions 已经运行。
+发布包只含编辑器：Windows x64 ZIP/安装 EXE，Mac arm64/Intel 各有 ZIP/DMG；不包含 AHK 主程序。编辑器可从“更多 → 检查更新”读取公开 Release，无需 GitHub CLI 登录；0.2.4 及更早版本因旧更新器可能需要先手动升级。Windows 包未签名、Mac 包仅 ad-hoc 签名且未公证；CI 通过不等于干净机器安装或游戏内验证。

@@ -36,11 +36,11 @@
 
 ### 编辑器更新
 
-“更多 → 检查更新”随时手动检查；发布版在普通覆盖模式下每天自动检查一次，可用 `--no-update-check` 跳过本次自动检查。更新器只比较仓库里已发布的稳定版 `editor-vX.Y.Z`，不会依赖 GitHub 的 Latest 标记，也不会更新 AHK 主程序。
+“更多 → 检查更新”可手动检查；发布版在普通覆盖模式下每个本地日历日自动检查一次，可用 `--no-update-check` 跳过本次自动检查。截图模式、诊断模式不自动检查。更新器读取公开 Release API 的前 100 项，忽略 draft、prerelease 和不匹配 `editor-vX.Y.Z` 的标签，只选择具有当前平台资产及 `SHA256SUMS.txt` 的较新稳定版；不依赖 GitHub Latest 标记，也不更新 AHK 主程序。网络、系统 `curl` 或 GitHub 访问失败时不能保证发现更新。
 
 仓库公开后，编辑器通过系统 `curl` 无需登录即可访问公开 Release，不要求安装 GitHub CLI (`gh`)；下载仍使用 HTTPS 和 SHA-256 校验。**已发布的 0.2.4 及更早版本仍使用 `gh`；若当前因缺少 `gh` 无法检查更新，需手动安装包含此修复的新版本一次。**开发构建、只读目录和从 DMG 直接运行的应用不自动覆盖。
 
-用户确认后下载对应平台的 ZIP（Windows 安装版下载 Inno Setup 安装器）及 `SHA256SUMS.txt`，核对 SHA-256；ZIP 还会解压并校验程序版本，macOS 额外验证包签名。再次确认、处理未保存草稿后，后台辅助程序等待编辑器退出，保留旧版备份并安装、重启新程序。更新失败时看更新临时目录的 `update-error.txt`，旧版或备份会保留。**现有发布包未做开发者签名/公证**，同一 Release 的校验和不能替代独立签名；首次启动可能仍受 Gatekeeper/SmartScreen 限制。
+用户确认后下载对应平台的 ZIP（Windows 已安装版下载 Inno Setup 安装器）及 `SHA256SUMS.txt`，核对 SHA-256；ZIP 还会解压并校验程序版本，macOS 额外验证包签名。再次确认、处理未保存草稿后，后台辅助程序等待编辑器退出，保留旧版备份并安装、重启新程序。安装版由安装器接管，不能等同于便携版的目录替换。更新失败时检查更新缓存临时目录的 `update-error.txt`；磁盘、权限或安装器失败仍可能需要手动恢复。**现有发布包未做开发者签名/公证**，同一 Release 的校验和不能证明发布者身份；首次启动可能受 Gatekeeper/SmartScreen 限制。
 
 编辑器图标共用 `resources/brand/app-icon.svg` 设计源；`scripts/generate_editor_icons.py` 生成已提交的 Windows `.ico` 和 macOS `.icns`，仅重新生成图标时需要 Pillow、CairoSVG 和 macOS `iconutil`。发布构建不依赖这些生成工具。
 
@@ -81,7 +81,7 @@
 
 macOS 首次安装 CMake/Ninja、Xcode Command Line Tools 后，可运行
 `python3 scripts/fetch_editor_qt_macos.py` 获取固定版本 SDK；开发脚本自身只使用已有 SDK。
-Windows 在 **VS 2022 x64 Developer PowerShell** 中用 Python 入口（需 Python 3.9+、CMake、Ninja 和匹配的 MSVC Qt SDK）：
+Windows 在 **VS 2022 x64 Developer PowerShell** 中用 Python 入口（需 Python 3.10+、CMake、Ninja 和匹配的 MSVC Qt SDK）：
 
 ```powershell
 python scripts/dev_editor.py --qt-prefix 'C:\Qt\6.11.3\msvc2022_64' -- --template
@@ -134,7 +134,7 @@ EDITOR="$PWD/.runtime/editor/dist/D4BoxEditor.app/Contents/MacOS/D4BoxEditor"
 构建/本地测量见 [构建与包体](../../docs/editor-build-size.md)。
 发布工作流和标签规则见 [Release 配置](../../docs/editor-release.md)。
 Schema 是 `schema/workflow-v1.schema.json`，C++ 验证器另检查引用、范围关联与静态前提。
-`tests/core_tests.cpp`、`tests/overlay_geometry_tests.cpp`、`--ui-self-test`、`--smoke-test` 都进入 CTest。
+CTest 包含核心、覆盖层几何、UI 冒烟、UI 交互、更新器、对话框和主题控件七组；macOS 另有原生图像测试，共八组。
 `--render` 只合成底图/编辑 UI，永不截取桌面；`--diagnose-overlay` 输出实际原生窗口标志，不代表真实鼠标穿透已经实测。
 
 ## 界面图标与缩放
