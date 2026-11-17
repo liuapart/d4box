@@ -418,9 +418,21 @@ try {
     if existed
         FileCopy(workflowFile, backup)
     try {
+        if FileExist(workflowFile)
+            FileDelete(workflowFile)
+        custom.name := "中文流程 Ω " Chr(0x1F600)
+        custom.steps[1].label := "步骤 Ω " Chr(0x1F680)
         D4Box_CubeSave(custom, custom.id)
         loaded := D4Box_CubeReadFile(workflowFile)[custom.id]
-        D4Box_Assert(loaded.name = custom.name && loaded.steps.Length = 2, "INI unicode/steps round trip")
+        D4Box_Assert(loaded.name = custom.name && loaded.steps.Length = 2 && loaded.steps[1].label = custom.steps[1].label, "INI unicode/steps round trip")
+        encoded := FileRead(workflowFile, "RAW")
+        D4Box_Assert(NumGet(encoded, 0, "UShort") = 0xFEFF, "new workflow INI has a Unicode BOM on every Windows locale")
+        legacy := FileOpen(workflowFile, "w", "CP0")
+        legacy.Write("[Unrelated]`r`nKeep=legacy`r`n"), legacy.Close()
+        D4Box_CubeSave(custom, custom.id)
+        loaded := D4Box_CubeReadFile(workflowFile)[custom.id]
+        D4Box_Assert(loaded.name = custom.name && loaded.steps[1].label = custom.steps[1].label
+            && IniRead(workflowFile, "Unrelated", "Keep") = "legacy", "legacy ANSI workflow file migrates without losing unrelated settings")
         D4Box_Assert(D4Box_CubeSelectedId() = custom.id, "selected workflow persists")
         D4Box_CubeSave(rightProfile, rightProfile.id)
         loaded := D4Box_CubeReadFile(workflowFile)[rightProfile.id]

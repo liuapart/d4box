@@ -49,7 +49,7 @@ jobs:
           $reports = @('.runtime/ahk-tests.log', 'app/ahk/tests/smoke_result.txt', 'app/ahk/tests/cube_result.txt', 'app/ahk/tests/update_result.txt')
           foreach ($file in $reports) {
             if (Test-Path -LiteralPath $file) {
-              $lines = @(Get-Content -LiteralPath $file -Encoding utf8 | Select-String -Pattern 'FAIL|失败|异常|Error|error|超时' -Context 0,2 | ForEach-Object { $_.ToString() })
+              $lines = @(Get-Content -LiteralPath $file -Encoding utf8 | Select-String -Pattern '^\s*FAIL\b|失败|异常|^\s*Error:|超时' -Context 0,2 | ForEach-Object { $_.ToString() })
               if ($lines.Count) {
                 $message = ($lines -join "`n").Replace('%','%25').Replace("`r",'%0D').Replace("`n",'%0A')
                 Write-Output "::error title=$file::$message"

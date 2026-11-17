@@ -241,8 +241,13 @@ D4Box_CubeSave(profile, selectedId := "", removeId := "") {
     if FileExist(temp)
         FileDelete(temp)
     try {
-        if FileExist(file)
-            FileCopy(file, temp)
+        ; IniDelete can create an empty ANSI file before the first IniWrite.
+        ; Seed UTF-16 explicitly and migrate legacy ANSI files using the same
+        ; system encoding as Windows' INI APIs; BOM-marked Unicode is detected.
+        contents := FileExist(file) ? FileRead(file, "CP0") : ""
+        output := FileOpen(temp, "w", "UTF-16")
+        try output.Write(contents)
+        finally output.Close()
         if removeId != "" {
             if !RegExMatch(removeId, "^user_[a-zA-Z0-9_]+$")
                 throw Error(L("cube.copyFirst"))

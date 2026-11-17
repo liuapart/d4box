@@ -1,6 +1,6 @@
 ; Single source of truth for the title, updater, PE metadata and release tag.
 D4Box_Version() {
-    return "0.3.0"
+    return "0.3.1"
 }
 
 D4Box_Repository() {

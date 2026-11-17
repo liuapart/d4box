@@ -10,6 +10,8 @@ Windows PowerShell：`./scripts/build-windows.ps1`。无需 Visual Studio、Qt �
 
 版本唯一来源 `app/ahk/core/Version.ahk`，使用 `X.Y.Z`，每段最多四位。它用于标题、更新比较、文件名、ProductVersion 和 FileVersion（追加 `.0`）。`-Tag d4box-vX.Y.Z` 会严格校验标签与源码一致。
 
+`d4box-v0.3.0` 的首次 CI 在英文 Windows 的流程名称 Unicode 回归中失败，未生成公开 Release；标签保留用于追溯。`0.3.1` 明确使用 UTF-16 暂存流程 INI，并兼容迁移旧 ANSI 文件，避免中文及其他 Unicode 名称随系统区域设置丢失。
+
 构建仅复制明确源码目录，内嵌默认流程、D4KeyHelp MIT、AutoHotkey GPLv2 和来源声明。发布 EXE 不需要旁边存在源码/config；首次启动提取资源到 `.runtime`。单 EXE 和 ZIP 的许可证均可获得。
 
 产物：
