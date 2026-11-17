@@ -12,6 +12,7 @@ if ($env:OS -ne 'Windows_NT') {
 
 if (-not $AhkPath) {
     $candidates = @(
+        (Join-Path $projectRoot '.runtime\autohotkey\v2\AutoHotkey64.exe'),
         (Join-Path $env:ProgramFiles 'AutoHotkey\v2\AutoHotkey64.exe'),
         (Join-Path $env:ProgramFiles 'AutoHotkey\v2\AutoHotkey32.exe'),
         (Join-Path $env:LOCALAPPDATA 'Programs\AutoHotkey\v2\AutoHotkey64.exe')
@@ -20,7 +21,8 @@ if (-not $AhkPath) {
 }
 
 if (-not $AhkPath -or -not (Test-Path -LiteralPath $AhkPath -PathType Leaf)) {
-    throw 'Install AutoHotkey v2 or pass -AhkPath with its executable path.'
+    if ($AhkPath) { throw "AutoHotkey v2 executable not found: $AhkPath" }
+    throw 'Extract AutoHotkey v2 to .runtime\autohotkey\v2, install it system-wide, or pass -AhkPath with an existing executable path.'
 }
 $AhkPath = (Resolve-Path -LiteralPath $AhkPath).Path
 if ((Get-Item -LiteralPath $AhkPath).VersionInfo.FileMajorPart -ne 2) {

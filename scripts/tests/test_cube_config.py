@@ -39,7 +39,7 @@ class BuiltinWorkflowTests(unittest.TestCase):
         self.assertEqual(sum(s[1] == "clear" for s in route), 1)
 
     def test_default_data_schema_and_localized_labels(self):
-        language = (ROOT / "app/ahk/utils/Lang.ahk").read_text()
+        language = (ROOT / "app/ahk/utils/Lang.ahk").read_text(encoding="utf-8")
         self.assertIn('"' + self.profile["NameKey"] + '"', language)
         for step in self.steps:
             self.assertEqual(len(step), 9)

@@ -18,6 +18,7 @@ AHK 是一个 AutoHotkey v2 进程，源码由主仓库直接维护；无需 sub
 - `D4Box.ahk` 依次加载语言、全局状态、工具、核心、GUI、功能模块和热键；语言表必须先于依赖它的全局变量。
 - `core/` 管理定时器、宏、窗口与热键；`functions/` 包含技能、鼠标、背包、魔盒、血球和诊断；`gui/` 是现有 Windows 控件界面。历史遗留的全局状态和 GUI/业务耦合仍存在，修改需关注加载顺序与配置兼容。
 - 魔盒已分为 `CubeProfiles.ahk` 的 INI 读写及校验、`InventoryScanner.ahk` 的格位扫描、`CubeRunner.ahk` 的通用动作执行与 `CubeWorkflowGUI.ahk` 的配置界面。自定义流程有视觉前置/结果检查；内置兼容流程仍保留原坐标和延时。
+- `DetectionRegions.ahk` 与 `DetectionRegionsGUI.ahk` 提供命名检测区域的存储、截图框选、出现/关闭测试和局部模板匹配。区域只返回匹配结果；流程按稳定 ID 引用，通过执行器决定等待还是点击。测试状态与模板及参数关联，运行时先校验依赖再复制快照；其 INI/BMP 位于 AHK 的 `.runtime/detection-regions/`，不属于 Qt 编辑器 JSON。
 - 设置与旧日志沿用入口目录；新诊断和自定义魔盒配置在该目录的 `.runtime`，测试目录使用独立配置。这些运行产物被 Git 忽略。
 
 ## 编辑器模块

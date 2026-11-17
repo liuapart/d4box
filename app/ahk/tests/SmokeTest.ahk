@@ -24,11 +24,14 @@
 #Include "..\functions\UtilityActions.ahk"
 #Include "..\functions\InventoryScanner.ahk"
 #Include "..\functions\CubeProfiles.ahk"
+#Include "..\functions\DetectionRegions.ahk"
+#Include "..\gui\DetectionRegionsGUI.ahk"
 #Include "..\functions\CubeRunner.ahk"
 #Include "..\functions\HealthGlobe.ahk"
 #Include "..\functions\ConditionSystem.ahk"
 #Include "..\functions\WindowDiagnostics.ahk"
 #Include "..\hotkeys\GameHotkeys.ahk"
+#Include "DetectionRegionsTest.ahk"
 
 report := A_ScriptDir "\smoke_result.txt"
 if FileExist(report)
@@ -49,6 +52,53 @@ try {
     D4Box_OpenCubeEditor()
     if !IsObject(D4Box_CubeUI) || D4Box_CubeUI.list.GetCount() < 1
         throw Error("Workflow editor has no steps")
+    D4Box_CubeUI.profile.builtin := false
+    D4Box_CubeUI.profile.steps.Push(D4Box_CubeStep("Load item|rightclick|any|0.7|0.8|250|-|24|3000"))
+    D4Box_CubeFillStep(D4Box_CubeUI.profile.steps.Length)
+    editedStep := D4Box_CubeReadStep()
+    if editedStep.action != "rightclick" || editedStep.x != 0 || editedStep.y != 0
+        || D4Box_CubeUI.action.Text != L("cube.rightclick")
+        throw Error("Right-click action did not round trip through the editor")
+    if D4Box_CubeUI.x.Enabled || D4Box_CubeUI.y.Enabled || D4Box_CubeUI.captureStep.Enabled
+        throw Error("Item selection must not accept fixed coordinates")
+    D4Box_CubeUI.source.Choose(2)
+    D4Box_CubeSourceChanged()
+    if !InStr(D4Box_CubeUI.note.Text, L("cube.mouseTarget"))
+        throw Error("Single-item target hint is missing")
+    D4Box_CubeUI.source.Choose(1)
+    D4Box_CubeSourceChanged()
+    if !InStr(D4Box_CubeUI.note.Text, L("cube.inventoryTarget"))
+        throw Error("Inventory target hint is missing")
+    D4Box_CubeUI.action.Choose(1)
+    D4Box_CubeActionChanged()
+    if !D4Box_CubeUI.x.Enabled || !D4Box_CubeUI.y.Enabled || !D4Box_CubeUI.captureStep.Enabled
+        throw Error("Recipe actions must retain editable coordinates")
+    D4Box_CubeReadStep()
+    D4Box_CubeUI.profile.steps.Pop()
+    D4Box_CubeUI.profile.steps.Push(D4Box_CubeStep("Optional|confirm_if_present|any|0.4|0.6|180|AABBCC|24|1500|0.1|0.2"))
+    D4Box_CubeFillStep(D4Box_CubeUI.profile.steps.Length)
+    editedStep := D4Box_CubeReadStep()
+    if editedStep.action != "confirm_if_present" || editedStep.probeX != 0.1 || editedStep.probeY != 0.2
+        || editedStep.x != 0.4 || editedStep.y != 0.6 || D4Box_CubeUI.action.Text != L("cube.confirm_if_present")
+        throw Error("Optional confirmation fields did not round trip")
+    if !D4Box_CubeUI.probeX.Enabled || !D4Box_CubeUI.probeY.Enabled || !D4Box_CubeUI.captureProbe.Enabled
+        || D4Box_CubeUI.captureStep.Text != L("cube.captureConfirmClick")
+        throw Error("Optional confirmation capture controls are missing")
+    D4Box_CubeApplyCapture(D4Box_CubeUI, "confirmClick", 0.45, 0.65, "FFFFFF")
+    editedStep := D4Box_CubeReadStep()
+    if editedStep.x != 0.45 || editedStep.y != 0.65 || editedStep.probeX != 0.1 || editedStep.color != "AABBCC"
+        throw Error("Capturing accept position changed probe/color")
+    D4Box_CubeApplyCapture(D4Box_CubeUI, "probe", 0.15, 0.25, "112233")
+    editedStep := D4Box_CubeReadStep()
+    if editedStep.x != 0.45 || editedStep.y != 0.65 || editedStep.probeX != 0.15 || editedStep.probeY != 0.25 || editedStep.color != "112233"
+        throw Error("Capturing probe changed accept position")
+    D4Box_CubeUI.action.Choose(3)
+    D4Box_CubeActionChanged()
+    if D4Box_CubeUI.probeX.Enabled || D4Box_CubeUI.probeY.Enabled || D4Box_CubeUI.captureProbe.Enabled
+        || D4Box_CubeUI.captureStep.Text != L("cube.captureStep")
+        throw Error("Ordinary accept must not enable probe controls")
+    D4Box_CubeUI.profile.steps.Pop()
+    D4Box_TestDetectionUI()
     D4Box_CubeUI.dirty := false
     D4Box_CubeCloseEditor()
     Append "配方流程编辑器创建正常"
@@ -57,6 +107,13 @@ try {
 }
 
 ; 两个按钮的回调直接调用一遍（不依赖点击）
+try {
+    D4Box_TestDetectionNative()
+    Append "检测区域原生截图与匹配正常"
+} catch as err {
+    Append "检测区域原生匹配异常: " err.Message " @" err.File ":" err.Line
+}
+
 try {
     TestHealthDetect()
     DetectHealthGlobeDelayed()

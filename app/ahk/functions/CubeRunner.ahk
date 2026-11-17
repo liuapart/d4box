@@ -1,18 +1,35 @@
 ; Shared step executor. The adapter isolates timing, input, and visual checks for tests.
-D4Box_RunCubePlan(plan, adapter) {
-    for step in plan {
+D4Box_RunCubePlan(plan, adapter, target := false) {
+    lastMouseStep := 0
+    if IsObject(target) && target.HasProp("source") && target.source = "manual" {
+        for index, step in plan
+            if step.action != "wait" && step.action != "check"
+                lastMouseStep := index
+    }
+    for index, step in plan {
         adapter.Check()
         adapter.Report(step)
+        waitAfter := true
         switch step.action {
             case "wait":
-                adapter.Sleep(step.delay)
+                ; Delay is applied below, after any pointer restoration.
             case "check":
                 adapter.WaitColor(step)
-                adapter.Sleep(step.delay)
+            case "confirm_if_present":
+                waitAfter := adapter.ClickIfPresent(step)
+            case "rightclick":
+                adapter.SelectItem(target)
             default:
                 adapter.Click(step.x, step.y, "left")
-                adapter.Sleep(step.delay)
         }
+        ; The remaining steps only wait/read pixels. Return before this step's delay,
+        ; but keep all subsequent checks and cancellation handling active.
+        if index = lastMouseStep {
+            adapter.Check()
+            adapter.MoveTo(target.x, target.y)
+        }
+        if waitAfter
+            adapter.Sleep(step.delay)
     }
     adapter.Check()
 }
@@ -31,7 +48,7 @@ D4Box_CubeFrame(hwnd, space) {
         throw Error(L("cube.noWindow"))
     if space = "screen" && (x != 0 || y != 0 || w != A_ScreenWidth || h != A_ScreenHeight)
         throw Error(L("cube.legacyFrame"))
-    return {x: x, y: y, w: w, h: h}
+    return {x: x, y: y, w: w, h: h, dpi: DllCall("GetDpiForWindow", "Ptr", hwnd, "UInt")}
 }
 
 class D4Box_CubeAdapter {
@@ -72,27 +89,111 @@ class D4Box_CubeAdapter {
         return {x: f.x + Min(f.w - 1, Round(f.w * x)), y: f.y + Min(f.h - 1, Round(f.h * y))}
     }
 
-    Click(x, y, button) {
-        point := this.Point(x, y)
-        this.Check()
-        MouseMove point.x, point.y, 0
-        this.Sleep(80)
-        this.Check()
+    MoveTo(x, y) {
+        MouseMove x, y, 0
+    }
+
+    SendClick(button) {
         Click button
     }
 
-    WaitColor(step) {
-        expected := Integer("0x" step.color)
-        deadline := A_TickCount + step.timeout
+    ReadColor(x, y) {
+        point := this.Point(x, y)
+        return PixelGetColor(point.x, point.y)
+    }
+
+    Now() {
+        return A_TickCount
+    }
+
+    Matches(step, probe := false) {
+        if D4Box_DetectorId(step) != "" {
+            if !step.HasProp("detector")
+                throw Error(L("detect.missing", step.detectorId))
+            return this.MatchRegion(step.detector)
+        }
+        return D4Box_CubeColorMatches(this.ReadColor(probe ? step.probeX : step.x, probe ? step.probeY : step.y)
+            , Integer("0x" step.color), step.tolerance)
+    }
+
+    MatchRegion(node) {
+        return D4Box_DetectorMatch(node, this.frame)
+    }
+
+    Click(x, y, button, guard := false) {
+        point := this.Point(x, y)
+        this.Check()
+        this.MoveTo(point.x, point.y)
+        this.Sleep(80)
+        this.Check()
+        ; Optional confirmation must still be visible after moving the pointer.
+        if IsObject(guard) && !this.Matches(guard, true)
+            return false
+        this.Check()
+        this.SendClick(button)
+        return true
+    }
+
+    ClickIfPresent(step) {
+        deadline := this.Now() + step.timeout
         stable := 0
         loop {
             this.Check()
-            point := this.Point(step.x, step.y)
-            actual := PixelGetColor(point.x, point.y)
-            stable := D4Box_CubeColorMatches(actual, expected, step.tolerance) ? stable + 1 : 0
+            stable := this.Matches(step, true) ? stable + 1 : 0
+            if stable >= 2 {
+                if this.Click(step.x, step.y, "left", step) {
+                    this.ReportConfirmation(step, true)
+                    return true
+                }
+                stable := 0
+            }
+            this.Check()
+            remaining := deadline - this.Now()
+            if remaining <= 0 {
+                this.ReportConfirmation(step, false)
+                return false
+            }
+            this.Sleep(Min(50, remaining))
+        }
+    }
+
+    ReportConfirmation(step, clicked) {
+        DebugLog(step.label ": " L(clicked ? "cube.confirmClicked" : "cube.confirmSkipped"))
+    }
+
+    SelectItem(target) {
+        this.Check()
+        if !IsObject(target) || !target.HasProp("x") || !target.HasProp("y")
+            throw Error(L("cube.noItemTarget"))
+        f := this.frame
+        if target.x < f.x || target.y < f.y || target.x >= f.x + f.w || target.y >= f.y + f.h
+            throw Error(L("cube.invalidPoint"))
+        this.CheckItem(target)
+        this.Click((target.x - f.x) / f.w, (target.y - f.y) / f.h, "right")
+    }
+
+    CheckItem(item) {
+        if item.source != "inventory"
+            return
+        f := this.frame
+        stepX := f.w * 0.0286563
+        stepY := f.h * 0.075
+        capture := CaptureInventoryGridBitmap(f.x + f.w * 0.674484
+            , f.y + f.h * 0.706944, stepX, stepY)
+        if !capture.ok || ClassifyInventorySlotFromCapture(capture, item.x, item.y, stepX, stepY) != item.quality
+            throw Error(L("cube.itemChanged", item.row, item.col))
+        this.Check()
+    }
+
+    WaitColor(step) {
+        deadline := this.Now() + step.timeout
+        stable := 0
+        loop {
+            this.Check()
+            stable := this.Matches(step) ? stable + 1 : 0
             if stable >= 2
                 return
-            if A_TickCount >= deadline
+            if this.Now() >= deadline
                 throw Error(L("cube.checkFailed", step.label))
             this.Sleep(50)
         }
@@ -140,12 +241,16 @@ AutoTransmute(*) {
     completed := 0
     total := 0
     failed := false
+    validated := false
+    startupError := ""
     try {
         StopAllTimers()
         SetTimer(ResumeAfterClickPause, 0)
         ReleaseAllKeys()
         CoordMode "Mouse", "Screen"
         CoordMode "Pixel", "Screen"
+        ; Capture once before any workflow step can move the pointer.
+        MouseGetPos(&itemMouseX, &itemMouseY)
         profiles := D4Box_CubeProfiles()
         selected := D4Box_CubeSelectedId()
         if !profiles.Has(selected)
@@ -154,12 +259,14 @@ AutoTransmute(*) {
         if profile.legacyYellow && utilityControls.HasProp("upgradeYellow") && utilityControls.upgradeYellow.enable.Value
             profile.quality := "redyellow"
         D4Box_CubeValidate(profile, true)
+        validated := true
         frame := D4Box_CubeFrame(hwnd, profile.space)
+        readyGuard := D4Box_DetectorBind(profile, frame)
         adapter := D4Box_CubeAdapter(hwnd, frame, profile.timeout)
         adapter.Check()
-        if profile.ready != ""
-            adapter.WaitColor(D4Box_CubeStep(profile.ready))
-        targets := profile.source = "inventory" ? FindInventoryItems(profile.quality, frame) : [{quality: "any"}]
+        if IsObject(readyGuard)
+            adapter.WaitColor(readyGuard)
+        targets := profile.source = "inventory" ? FindInventoryItems(profile.quality, frame) : [{quality: "any", x: itemMouseX, y: itemMouseY}]
         adapter.Check()
         total := Min(targets.Length, profile.source = "inventory" ? profile.maxItems : 1)
         if !total {
@@ -169,25 +276,17 @@ AutoTransmute(*) {
         Loop total {
             item := targets[A_Index]
             adapter.Check()
-            if profile.ready != ""
-                adapter.WaitColor(D4Box_CubeStep(profile.ready))
-            if profile.source = "inventory" {
-                ; Recheck the slot before using a coordinate from the initial inventory snapshot.
-                stepX := frame.w * 0.0286563
-                stepY := frame.h * 0.075
-                capture := CaptureInventoryGridBitmap(frame.x + frame.w * 0.674484
-                    , frame.y + frame.h * 0.706944, stepX, stepY)
-                if !capture.ok || ClassifyInventorySlotFromCapture(capture, item.x, item.y, stepX, stepY) != item.quality
-                    throw Error(L("cube.itemChanged", item.row, item.col))
-                adapter.Click((item.x - frame.x) / frame.w, (item.y - frame.y) / frame.h, "right")
-                adapter.Sleep(250)
-            }
+            if IsObject(readyGuard)
+                adapter.WaitColor(readyGuard)
+            item.source := profile.source
             UpdateStatus("transmuting", L("cube.progress", D4Box_CubeProfileName(profile), A_Index, total))
-            D4Box_RunCubePlan(D4Box_CubePlan(profile, item.quality), adapter)
+            D4Box_RunCubePlan(D4Box_CubeItemPlan(profile, item.quality), adapter, item)
             completed += 1
         }
         UpdateStatus("transmuteDone", L("cube.done", completed))
     } catch as err {
+        if !validated
+            startupError := err.Message
         failed := isAutoTransmuting
         if failed
             UpdateStatus("transmuteFailed", L("bar.transmuteFailed", err.Message))
@@ -207,4 +306,6 @@ AutoTransmute(*) {
         if shouldResume && isRunning && !isPaused && WinActive("ahk_id " hwnd)
             StartAllTimers()
     }
+    if startupError != ""
+        MsgBox(startupError, L("cube.cannotRun"))
 }

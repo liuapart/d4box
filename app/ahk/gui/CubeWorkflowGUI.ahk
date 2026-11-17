@@ -36,44 +36,59 @@ D4Box_OpenCubeEditor(*) {
         ui.timeout := editor.AddEdit("x370 y123 w90 Number")
         ui.guardText := editor.AddText("x16 y162 w520 h38")
         editor.AddButton("x540 y157 w220", L("cube.captureReady")).OnEvent("Click", D4Box_CubeCapture.Bind("ready"))
-        ui.list := editor.AddListView("x16 y205 w744 h190 -Multi", [L("cube.stepName"), L("cube.action"), L("cube.applies")
+        ui.list := editor.AddListView("x16 y205 w744 h155 -Multi", [L("cube.stepName"), L("cube.action"), L("cube.applies")
             , "X", "Y", L("cube.delay")])
         for index, width in [185, 145, 125, 80, 80, 105]
             ui.list.ModifyCol(index, width)
-        ui.label := editor.AddEdit("x16 y410 w230")
-        ui.action := editor.AddDropDownList("x260 y410 w245", D4Box_CubeActionLabels())
-        ui.when := editor.AddDropDownList("x520 y410 w240", [L("cube.any"), L("cube.red"), L("cube.yellow"), L("cube.blue")])
-        editor.AddText("x16 y449 w18", "X")
-        ui.x := editor.AddEdit("x38 y445 w85")
-        editor.AddText("x135 y449 w18", "Y")
-        ui.y := editor.AddEdit("x157 y445 w85")
-        editor.AddText("x260 y449 w95", L("cube.delay"))
-        ui.delay := editor.AddEdit("x360 y445 w80 Number")
-        editor.AddButton("x460 y442 w300", L("cube.captureStep")).OnEvent("Click", D4Box_CubeCapture.Bind("step"))
-        editor.AddText("x16 y484 w85", L("cube.color"))
-        ui.color := editor.AddEdit("x105 y480 w100")
-        editor.AddText("x220 y484 w100", L("cube.tolerance"))
-        ui.tolerance := editor.AddEdit("x325 y480 w65 Number")
-        editor.AddText("x410 y484 w150", L("cube.checkTimeout"))
-        ui.checkTimeout := editor.AddEdit("x570 y480 w90 Number")
+        ui.label := editor.AddEdit("x16 y375 w230")
+        ui.action := editor.AddDropDownList("x260 y375 w245", D4Box_CubeActionLabels())
+        ui.when := editor.AddDropDownList("x520 y375 w240", [L("cube.any"), L("cube.red"), L("cube.yellow"), L("cube.blue")])
+        editor.AddText("x16 y414 w18", "X")
+        ui.x := editor.AddEdit("x38 y410 w85")
+        editor.AddText("x135 y414 w18", "Y")
+        ui.y := editor.AddEdit("x157 y410 w85")
+        editor.AddText("x260 y414 w95", L("cube.delay"))
+        ui.delay := editor.AddEdit("x360 y410 w80 Number")
+        ui.captureStep := editor.AddButton("x460 y407 w300", L("cube.captureStep"))
+        ui.captureStep.OnEvent("Click", D4Box_CubeCapture.Bind("step"))
+        editor.AddText("x16 y449 w85", L("cube.color"))
+        ui.color := editor.AddEdit("x105 y445 w100")
+        editor.AddText("x220 y449 w100", L("cube.tolerance"))
+        ui.tolerance := editor.AddEdit("x325 y445 w65 Number")
+        editor.AddText("x410 y449 w150", L("cube.checkTimeout"))
+        ui.checkTimeout := editor.AddEdit("x570 y445 w90 Number")
+        editor.AddText("x16 y484 w65", L("cube.probeX"))
+        ui.probeX := editor.AddEdit("x85 y480 w85")
+        editor.AddText("x190 y484 w65", L("cube.probeY"))
+        ui.probeY := editor.AddEdit("x260 y480 w85")
+        ui.captureProbe := editor.AddButton("x460 y477 w300", L("cube.captureConfirmProbe"))
+        ui.captureProbe.OnEvent("Click", D4Box_CubeCapture.Bind("probe"))
+        editor.AddText("x16 y519 w90", L("detect.node"))
+        ui.detector := editor.AddDropDownList("x110 y515 w310")
+        ui.detectorIds := [""]
+        ui.detector.OnEvent("Change", D4Box_CubeDetectorChanged)
+        ui.useReady := editor.AddButton("x432 y513 w145", L("detect.useReady"))
+        ui.useReady.OnEvent("Click", D4Box_CubeDetectorReady)
+        editor.AddButton("x589 y513 w171", L("detect.title")).OnEvent("Click", D4Box_OpenDetectorLibrary)
         for spec in [["add", "cube.addStep", 16], ["update", "cube.updateStep", 170], ["delete", "cube.deleteStep", 324]
             , ["up", "cube.up", 478], ["down", "cube.down", 632]]
-            editor.AddButton("x" spec[3] " y520 w128", L(spec[2])).OnEvent("Click", D4Box_CubeEditStep.Bind(spec[1]))
-        ui.note := editor.AddText("x16 y563 w744 h42")
-        editor.AddButton("x16 y617 w230", L("cube.saveUse")).OnEvent("Click", D4Box_CubeSaveEditor)
-        editor.AddButton("x264 y617 w230", L("cube.preview")).OnEvent("Click", D4Box_CubePreview)
-        editor.AddButton("x512 y617 w248", L("cube.close")).OnEvent("Click", D4Box_CubeCloseEditor)
+            editor.AddButton("x" spec[3] " y555 w128", L(spec[2])).OnEvent("Click", D4Box_CubeEditStep.Bind(spec[1]))
+        ui.note := editor.AddText("x16 y598 w744 h42")
+        editor.AddButton("x16 y652 w230", L("cube.saveUse")).OnEvent("Click", D4Box_CubeSaveEditor)
+        editor.AddButton("x264 y652 w230", L("cube.preview")).OnEvent("Click", D4Box_CubePreview)
+        editor.AddButton("x512 y652 w248", L("cube.close")).OnEvent("Click", D4Box_CubeCloseEditor)
         for control in [ui.name, ui.source, ui.quality, ui.space, ui.maxItems, ui.timeout]
             control.OnEvent("Change", D4Box_CubeDirty)
-        for control in [ui.label, ui.action, ui.when, ui.x, ui.y, ui.delay, ui.color, ui.tolerance, ui.checkTimeout]
+        for control in [ui.label, ui.action, ui.when, ui.x, ui.y, ui.delay, ui.color, ui.tolerance, ui.checkTimeout, ui.probeX, ui.probeY]
             control.OnEvent("Change", D4Box_CubeStepDirty)
+        ui.action.OnEvent("Change", D4Box_CubeActionChanged)
         ui.source.OnEvent("Change", D4Box_CubeSourceChanged)
         ui.selector.OnEvent("Change", D4Box_CubeChangeProfile)
         ui.list.OnEvent("ItemSelect", D4Box_CubeSelectStep)
         editor.OnEvent("Close", D4Box_CubeCloseEditor)
         editor.OnEvent("Escape", D4Box_CubeCloseEditor)
         D4Box_CubeRefreshProfiles(D4Box_CubeSelectedId())
-        editor.Show("w780 h662")
+        editor.Show("w780 h697")
     } catch as err {
         if IsObject(D4Box_CubeUI)
             D4Box_CubeUI.gui.Destroy()
@@ -87,7 +102,7 @@ D4Box_CubeQualityLabels() {
 }
 
 D4Box_CubeActionLabels() {
-    return [L("cube.select"), L("cube.execute"), L("cube.confirm"), L("cube.clear"), L("cube.wait"), L("cube.check")]
+    return [L("cube.select"), L("cube.execute"), L("cube.confirm"), L("cube.clear"), L("cube.wait"), L("cube.check"), L("cube.rightclick"), L("cube.confirm_if_present")]
 }
 
 D4Box_CubeIndex(values, wanted) {
@@ -155,9 +170,16 @@ D4Box_CubeLoadEditor(id) {
     ui.maxItems.Value := p.maxItems
     ui.timeout.Value := p.timeout // 1000
     ui.guardText.Text := p.ready = "" ? L("cube.noReady") : L("cube.readySet")
+    if p.ready != "" {
+        readyId := D4Box_DetectorId(D4Box_CubeStep(p.ready))
+        if readyId != "" {
+            nodes := D4Box_DetectorRead()
+            ui.guardText.Text .= " — " (nodes.Has(readyId) ? nodes[readyId].name : readyId)
+        }
+    }
     ui.note.Text := p.builtin ? L("cube.builtinNote") : L("cube.customNote")
     for control in [ui.name, ui.source, ui.quality, ui.space, ui.maxItems, ui.timeout
-        , ui.label, ui.action, ui.when, ui.x, ui.y, ui.delay, ui.color, ui.tolerance, ui.checkTimeout]
+        , ui.label, ui.action, ui.when, ui.x, ui.y, ui.delay, ui.color, ui.tolerance, ui.checkTimeout, ui.probeX, ui.probeY]
         control.Enabled := !p.builtin
     D4Box_CubeSourceChanged()
     D4Box_CubeRenderSteps(1)
@@ -172,7 +194,7 @@ D4Box_CubeRenderSteps(row := 0) {
     ui.loading := true
     ui.list.Delete()
     for step in ui.profile.steps
-        ui.list.Add("", step.label, L("cube." step.action), L("cube." step.quality), step.x, step.y, step.delay)
+        ui.list.Add("", step.label, L("cube." step.action), L("cube." step.quality), step.action = "rightclick" ? "—" : step.x, step.action = "rightclick" ? "—" : step.y, step.delay)
     ui.row := Min(row, ui.profile.steps.Length)
     if ui.row > 0
         ui.list.Modify(ui.row, "Select Focus Vis")
@@ -188,25 +210,131 @@ D4Box_CubeFillStep(row) {
     step := row > 0 ? ui.profile.steps[row] : {label: L("cube.newStep"), action: "select", quality: "any"
         , x: 0.445, y: 0.380, delay: 180, color: "-", tolerance: 24, timeout: 3000}
     ui.label.Value := step.label
-    ui.action.Choose(D4Box_CubeIndex(["select", "execute", "confirm", "clear", "wait", "check"], step.action))
+    ui.action.Choose(D4Box_CubeIndex(["select", "execute", "confirm", "clear", "wait", "check", "rightclick", "confirm_if_present"], step.action))
     ui.when.Choose(D4Box_CubeIndex(["any", "red", "yellow", "blue"], step.quality))
-    ui.x.Value := step.x
-    ui.y.Value := step.y
+    ui.x.Value := step.action = "rightclick" ? "" : step.x
+    ui.y.Value := step.action = "rightclick" ? "" : step.y
+    ui.probeX.Value := step.HasProp("probeX") ? step.probeX : step.x
+    ui.probeY.Value := step.HasProp("probeY") ? step.probeY : step.y
     ui.delay.Value := step.delay
     ui.color.Value := step.color
     ui.tolerance.Value := step.tolerance
     ui.checkTimeout.Value := step.timeout
+    D4Box_CubeRefreshDetectorChoices(D4Box_DetectorId(step))
+    D4Box_CubeActionChanged()
     ui.stepDirty := false
     ui.loading := wasLoading
+}
+
+D4Box_CubeItemTargetLabel(source) {
+    return L(source = "inventory" ? "cube.inventoryTarget" : "cube.mouseTarget")
+}
+
+D4Box_CubeActionChanged(*) {
+    global D4Box_CubeUI
+    ui := D4Box_CubeUI
+    optionalConfirm := ui.action.Value = 8
+    usesDetector := D4Box_CubeDetectorSelected() != "" && (optionalConfirm || ui.action.Value = 6)
+    ui.detector.Enabled := !ui.profile.builtin && (optionalConfirm || ui.action.Value = 6)
+    ui.useReady.Enabled := !ui.profile.builtin && usesDetector
+    ui.color.Enabled := !ui.profile.builtin && !usesDetector
+    ui.tolerance.Enabled := !ui.profile.builtin && !usesDetector
+    dynamic := ui.action.Value = 7
+    for control in [ui.probeX, ui.probeY, ui.captureProbe]
+        control.Enabled := optionalConfirm && !ui.profile.builtin && !usesDetector
+    ui.captureStep.Text := L(optionalConfirm ? "cube.captureConfirmClick" : "cube.captureStep")
+    enabled := !ui.profile.builtin && !dynamic && !(usesDetector && ui.action.Value = 6)
+    ui.x.Enabled := enabled
+    ui.y.Enabled := enabled
+    ui.captureStep.Enabled := enabled
+    if dynamic {
+        ui.x.Value := ""
+        ui.y.Value := ""
+    } else {
+        if ui.x.Value = ""
+            ui.x.Value := 0
+        if ui.y.Value = ""
+            ui.y.Value := 0
+    }
+    if dynamic
+        ui.note.Text := L("cube.itemTargetNote", D4Box_CubeItemTargetLabel(["inventory", "manual"][ui.source.Value]))
+    else if usesDetector
+        ui.note.Text := L("detect.workflowHint")
+    else if optionalConfirm
+        ui.note.Text := L("cube.confirmNote")
+    else
+        ui.note.Text := ui.profile.builtin ? L("cube.builtinNote") : L("cube.customNote")
 }
 
 D4Box_CubeReadStep() {
     global D4Box_CubeUI
     ui := D4Box_CubeUI
-    return {label: Trim(ui.label.Value), action: ["select", "execute", "confirm", "clear", "wait", "check"][ui.action.Value]
-        , quality: ["any", "red", "yellow", "blue"][ui.when.Value], x: Number(ui.x.Value), y: Number(ui.y.Value)
+    return {label: Trim(ui.label.Value), action: ["select", "execute", "confirm", "clear", "wait", "check", "rightclick", "confirm_if_present"][ui.action.Value]
+        , quality: ["any", "red", "yellow", "blue"][ui.when.Value], x: ui.action.Value = 7 ? 0 : Number(ui.x.Value), y: ui.action.Value = 7 ? 0 : Number(ui.y.Value)
         , delay: Integer(ui.delay.Value), color: Trim(ui.color.Value), tolerance: Integer(ui.tolerance.Value)
-        , timeout: Integer(ui.checkTimeout.Value)}
+        , timeout: Integer(ui.checkTimeout.Value)
+        , probeX: ui.action.Value = 8 ? Number(ui.probeX.Value) : 0
+        , probeY: ui.action.Value = 8 ? Number(ui.probeY.Value) : 0
+        , detectorId: (ui.action.Value = 6 || ui.action.Value = 8) ? D4Box_CubeDetectorSelected() : ""}
+}
+
+D4Box_CubeDetectorSelected() {
+    global D4Box_CubeUI
+    ui := D4Box_CubeUI
+    return ui.detector.Value ? ui.detectorIds[ui.detector.Value] : ""
+}
+
+D4Box_CubeRefreshDetectorChoices(selected := unset) {
+    global D4Box_CubeUI
+    ui := D4Box_CubeUI
+    if !IsObject(ui) || !ui.HasProp("detector")
+        return
+    if !IsSet(selected)
+        selected := D4Box_CubeDetectorSelected()
+    nodes := D4Box_DetectorRead()
+    ui.detectorIds := [""]
+    labels := [L("detect.legacy")]
+    for id, node in nodes {
+        if !D4Box_DetectorPassed(node) || !FileExist(D4Box_DetectorRoot() "\" node.image)
+            continue
+        ui.detectorIds.Push(id)
+        labels.Push(node.name)
+    }
+    found := selected = ""
+    for id in ui.detectorIds
+        if id = selected
+            found := true
+    if !found {
+        ui.detectorIds.Push(selected)
+        labels.Push(L("detect.unavailable", nodes.Has(selected) ? nodes[selected].name : selected))
+    }
+    wasLoading := ui.loading
+    ui.loading := true
+    ui.detector.Delete()
+    ui.detector.Add(labels)
+    ui.detector.Choose(D4Box_CubeIndex(ui.detectorIds, selected))
+    ui.loading := wasLoading
+    if IsObject(ui.profile)
+        D4Box_CubeActionChanged()
+}
+
+D4Box_CubeDetectorChanged(*) {
+    D4Box_CubeStepDirty()
+    D4Box_CubeActionChanged()
+}
+
+D4Box_CubeDetectorReady(*) {
+    global D4Box_CubeUI
+    ui := D4Box_CubeUI
+    try {
+        id := D4Box_CubeDetectorSelected()
+        node := D4Box_DetectorRequire(id, D4Box_DetectorRead())
+        guard := D4Box_CubeStep(L("cube.ready") "|check|any|0|0|0|-|0|3000|0|0|" id)
+        ui.profile.ready := D4Box_CubeStepText(guard)
+        ui.guardText.Text := L("cube.readySet") " — " node.name
+        ui.dirty := true
+    } catch as err
+        MsgBox(err.Message, "d4box")
 }
 
 D4Box_CubeFlushStep() {
@@ -218,7 +346,7 @@ D4Box_CubeFlushStep() {
             ui.profile.steps[ui.row] := step
             wasLoading := ui.loading
             ui.loading := true
-            ui.list.Modify(ui.row, "", step.label, L("cube." step.action), L("cube." step.quality), step.x, step.y, step.delay)
+            ui.list.Modify(ui.row, "", step.label, L("cube." step.action), L("cube." step.quality), step.action = "rightclick" ? "—" : step.x, step.action = "rightclick" ? "—" : step.y, step.delay)
             ui.loading := wasLoading
         } else {
             ui.profile.steps.Push(step)
@@ -303,6 +431,7 @@ D4Box_CubeSourceChanged(*) {
     enabled := !ui.profile.builtin && ui.source.Value = 1
     ui.quality.Enabled := enabled
     ui.maxItems.Enabled := enabled
+    D4Box_CubeActionChanged()
 }
 
 D4Box_CubeNewProfile(*) {
@@ -358,8 +487,15 @@ D4Box_CubeSaveEditor(*) {
         D4Box_CubeSave(p.builtin ? "" : p, p.id)
         ui.profiles[p.id] := p
         D4Box_CubeRefreshProfiles(p.id)
-        ui.note.Text := L("cube.saved")
-        UpdateStatus("idle", L("cube.selected", D4Box_CubeProfileName(p)))
+        issue := D4Box_CubeRunIssue(p)
+        if issue != "" {
+            ui.note.Text := L("cube.savedDraft", issue)
+            UpdateStatus("idle", L("cube.savedDraft", issue))
+            MsgBox(L("cube.savedDraft", issue), L("cube.cannotRun"))
+        } else {
+            ui.note.Text := L("cube.saved")
+            UpdateStatus("idle", L("cube.selected", D4Box_CubeProfileName(p)))
+        }
     } catch as err {
         MsgBox(err.Message, "d4box")
     }
@@ -393,10 +529,16 @@ D4Box_CubePreview(*) {
         text := D4Box_CubeProfileName(p) "`r`n" L("cube.previewNote") "`r`n"
         for quality in D4Box_CubeQualities(p) {
             text .= "`r`n[" L("cube." quality) "]`r`n"
-            if p.source = "inventory"
-                text .= L("cube.loadItem") "`r`n"
-            for index, step in D4Box_CubePlan(p, quality)
-                text .= index ". " step.label " — " L("cube." step.action) " (" step.x ", " step.y ") +" step.delay "ms`r`n"
+            for index, step in D4Box_CubeItemPlan(p, quality) {
+                targetText := step.action = "rightclick" ? D4Box_CubeItemTargetLabel(p.source) : step.x ", " step.y
+                if D4Box_DetectorId(step) != "" {
+                    nodes := D4Box_DetectorRead()
+                    targetText .= "; " L("detect.node") ": " (nodes.Has(step.detectorId) ? nodes[step.detectorId].name : step.detectorId)
+                } else if step.action = "confirm_if_present"
+                    targetText .= ("; " L("cube.probeX") "=" step.probeX ", " L("cube.probeY") "=" step.probeY
+                        ", #" step.color ", ±" step.tolerance ", " step.timeout "ms")
+                text .= index ". " step.label " — " L("cube." step.action) " (" targetText ") +" step.delay "ms`r`n"
+            }
         }
         preview := Gui("+Owner" D4Box_CubeUI.gui.Hwnd, L("cube.preview"))
         preview.SetFont("s10", "Segoe UI")
@@ -418,6 +560,8 @@ D4Box_CubeCapture(kind, *) {
     }
     if D4Box_CubeBusy || D4Box_CubeCapturePending
         return
+    if kind = "step" && ui.action.Value = 8
+        kind := "confirmClick"
     D4Box_CubeCapturePending := true
     ui.captureTimer := D4Box_CubeCaptureNow.Bind(ui, kind)
     ui.gui.Hide()
@@ -446,17 +590,7 @@ D4Box_CubeCaptureNow(ui, kind) {
         nx := Round((x - frame.x) / frame.w, 6)
         ny := Round((y - frame.y) / frame.h, 6)
         color := Format("{:06X}", PixelGetColor(x, y))
-        if kind = "ready" {
-            ui.profile.ready := D4Box_CubeStepText({label: L("cube.ready"), action: "check", quality: "any"
-                , x: nx, y: ny, delay: 0, color: color, tolerance: 24, timeout: 3000})
-            ui.guardText.Text := L("cube.readySet") " (" nx ", " ny ", #" color ")"
-        } else {
-            ui.x.Value := nx
-            ui.y.Value := ny
-            ui.color.Value := color
-            ui.stepDirty := true
-        }
-        ui.dirty := true
+        D4Box_CubeApplyCapture(ui, kind, nx, ny, color)
     } catch as err {
         MsgBox(err.Message, "d4box")
     } finally {
@@ -469,8 +603,34 @@ D4Box_CubeCaptureNow(ui, kind) {
     }
 }
 
+D4Box_CubeApplyCapture(ui, kind, nx, ny, color) {
+    if kind = "ready" {
+        ui.profile.ready := D4Box_CubeStepText({label: L("cube.ready"), action: "check", quality: "any"
+            , x: nx, y: ny, delay: 0, color: color, tolerance: 24, timeout: 3000})
+        ui.guardText.Text := L("cube.readySet") " (" nx ", " ny ", #" color ")"
+    } else {
+        if kind = "probe" {
+            ui.probeX.Value := nx
+            ui.probeY.Value := ny
+            ui.color.Value := color
+        } else {
+            ui.x.Value := nx
+            ui.y.Value := ny
+            if kind != "confirmClick"
+                ui.color.Value := color
+        }
+        ui.stepDirty := true
+    }
+    ui.dirty := true
+}
+
 D4Box_CubeCloseEditor(*) {
-    global D4Box_CubeUI, D4Box_CubeCapturePending
+    global D4Box_CubeUI, D4Box_CubeCapturePending, D4Box_DetectorUI
+    if IsObject(D4Box_DetectorUI) {
+        D4Box_DetectorClose()
+        if IsObject(D4Box_DetectorUI)
+            return true
+    }
     ui := D4Box_CubeUI
     if ui.dirty && MsgBox(L("cube.discard"), "d4box", "YesNo") != "Yes"
         return true

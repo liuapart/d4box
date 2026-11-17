@@ -12,6 +12,7 @@
 - 血球颜色与液面识别、条件喝药和护盾处理。
 - 装备格颜色识别、可配置的魔盒步骤执行器；内置背包嬗变及可选黄装升级流程。
 - 配方流程编辑器：复制内置流程、编辑步骤、采集位置与颜色、预览并保存；F3 执行当前选用流程。
+- 检测区域库：命名、截图框选模板、测试面板出现/关闭，保存后供流程的就绪检查、等待检测和可选接受共用；旧单点颜色检查保持兼容。
 - 窗口切换暂停、手动点击暂停、退出时释放按键、配置持久化和日志轮转。
 - d4box 窗口诊断：游戏在前台时按 **Ctrl+Alt+F8**，显示并记录客户区位置和尺寸。
 
@@ -70,13 +71,13 @@ SDK 选择、参数及 Windows 入口见 [编辑器开发说明](app/editor/READ
 
 ## Windows 运行
 
-安装 AutoHotkey v2，在 PowerShell 中执行：
+主程序源码启动器已包含在仓库中。将 AutoHotkey v2 官方便携包解压到 `.runtime/autohotkey/v2/`（其中应直接包含 `AutoHotkey64.exe`），或安装系统版后，在 PowerShell 中执行：
 
 ```powershell
 .\scripts\start-windows.ps1
 ```
 
-也可以明确指定解释器，或用 AutoHotkey v2 直接打开 `app\ahk\D4Box.ahk`：
+启动器优先使用项目内便携版，再探测系统安装目录。`.runtime/` 已被 Git 忽略，解释器不会提交。也可以明确指定实际存在的解释器路径，或用 AutoHotkey v2 直接打开 `app\ahk\D4Box.ahk`：
 
 ```powershell
 .\scripts\start-windows.ps1 -AhkPath 'C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe'
@@ -84,7 +85,15 @@ SDK 选择、参数及 Windows 入口见 [编辑器开发说明](app/editor/READ
 
 启动后只有一个 d4box 进程。默认 F1 启停宏，F3 执行选用的魔盒流程，Ctrl+Alt+F8 显示窗口诊断。先阅读 [Windows 验证清单](docs/windows-validation.md)，在游戏中验证配置和识别位置后再启用自动操作。
 
-旧版双进程入口及 `-SkipUpstream` 参数已移除。迁移后请先退出仍在运行的旧 D4KeyHelp 和扩展脚本。
+Windows 编辑器开发启动器会自动加载 VS 2022 x64 编译环境，再构建、运行 CTest 并打开开发版。无需完整 VS IDE：安装 **Visual Studio 2022 Build Tools** 的“使用 C++ 的桌面开发”（含 MSVC v143 x64/x86 与 Windows SDK），并准备 Python 3.10+、CMake、Ninja 和 Qt 6 MSVC Base + SVG SDK；普通 PowerShell 即可运行。Build Tools 的 C++ CMake 工具也提供 Ninja。已按 CI 方式把 SDK 安装到仓库 `.runtime/editor/qt/6.11.3/msvc2022_64` 时：
+
+```powershell
+.\scripts\start-editor-windows.ps1 -- --template
+```
+
+`-QtPrefix` 可指定实际存在的外部 SDK 目录（例如 `-QtPrefix 'C:\Qt\6.11.3\msvc2022_64'`）；省略时沿用 `QT_PREFIX` 或仓库内已准备的 SDK。编辑器参数放在 `--` 后；例如 `-- --background 'C:\screenshots\cube.png'`。此脚本用于源码开发，不是发布包启动器；独立发布包只含编辑器，不含 AHK 主程序。
+
+旧版双进程入口及 `-SkipUpstream` 参数已移除。迁移后请先退出仍在运行的旧 D4KeyHelp 和扩展脚本。主程序目前通过 AutoHotkey v2 解释器运行源码；独立 EXE 发布流程尚未接入本仓库。
 
 ## 配置与日志
 
@@ -108,7 +117,7 @@ bash app/ahk/tests/run.sh workflow
 
 ## 配置其他配方
 
-点击主界面的“配方流程…”，复制内置配置后编辑步骤，支持背包筛选和已手动放入两种来源。流程的抽象、操作说明、检查点要求与当前限制见 [魔盒流程说明](docs/cube-workflows.md)。
+点击主界面的“配方流程…”，复制内置配置后编辑步骤，支持背包筛选和单次物品（鼠标指向）两种来源。“检测区域库”中通过出现/关闭测试并保存的区域，可以在步骤的“检测节点”中按名称选择，也能设为就绪检查。流程的操作说明、检查点要求与当前限制见 [魔盒流程说明](docs/cube-workflows.md)。
 
 
 ## 独立配置编辑器（不接 AHK）

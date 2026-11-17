@@ -30,6 +30,7 @@ global isAutoTransmuting := false    ; 自动嬗变运行状态（F3再次按下
 global D4Box_CubeBusy := false
 global D4Box_CubeUI := ""
 global D4Box_CubeCapturePending := false
+global D4Box_DetectorUI := ""
 
 ; 技能模式常量
 global SKILL_MODE_CLICK := 1    ; 连点模式

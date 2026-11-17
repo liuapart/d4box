@@ -24,6 +24,8 @@
 #Include "..\functions\UtilityActions.ahk"
 #Include "..\functions\InventoryScanner.ahk"
 #Include "..\functions\CubeProfiles.ahk"
+#Include "..\functions\DetectionRegions.ahk"
+#Include "..\gui\DetectionRegionsGUI.ahk"
 #Include "..\functions\CubeRunner.ahk"
 #Include "..\functions\HealthGlobe.ahk"
 #Include "..\functions\ConditionSystem.ahk"

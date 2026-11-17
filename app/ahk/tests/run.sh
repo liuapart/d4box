@@ -41,6 +41,7 @@ find_ahk() {
     fi
     local cand
     for cand in \
+        "$REPO_ROOT/../../.runtime/autohotkey/v2/AutoHotkey64.exe" \
         "/c/Program Files/AutoHotkey/v2/AutoHotkey64.exe" \
         "/c/Program Files/AutoHotkey/v2/AutoHotkey.exe" \
         "/c/Program Files/AutoHotkey/AutoHotkey64.exe" \

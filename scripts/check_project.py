@@ -36,6 +36,9 @@ def main() -> int:
         "app/ahk/config/cube-workflows.ini",
         "app/ahk/functions/CubeProfiles.ahk",
         "app/ahk/functions/CubeRunner.ahk",
+        "app/ahk/functions/DetectionRegions.ahk",
+        "app/ahk/gui/DetectionRegionsGUI.ahk",
+        "app/ahk/tests/DetectionRegionsTest.ahk",
         "app/ahk/gui/CubeWorkflowGUI.ahk",
         "app/ahk/tests/CubeWorkflowTest.ahk",
         "app/ahk/functions/WindowDiagnostics.ahk",
@@ -43,6 +46,7 @@ def main() -> int:
         "app/ahk/tests/HealthGlobeTest.ahk",
         "app/ahk/tests/run.sh",
         "scripts/start-windows.ps1",
+        "scripts/start-editor-windows.ps1",
         "docs/architecture.md",
         "docs/windows-validation.md",
         "THIRD_PARTY_NOTICES.md",
@@ -64,6 +68,9 @@ def main() -> int:
         launcher = (ROOT / "scripts/start-windows.ps1").read_text()
         if "app\\ahk\\D4Box.ahk" not in launcher or "SkipUpstream" in launcher:
             raise ValueError("Launcher must start the single local d4box application")
+        editor_launcher = (ROOT / "scripts/start-editor-windows.ps1").read_text()
+        if "scripts\\dev_editor.py" not in editor_launcher or "--qt-prefix" not in editor_launcher:
+            raise ValueError("Windows editor launcher must delegate to the existing development entry")
     except (OSError, subprocess.CalledProcessError, ValueError) as error:
         print(f"FAIL: {error}", file=sys.stderr)
         return 1

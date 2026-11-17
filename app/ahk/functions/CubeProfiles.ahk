@@ -25,16 +25,22 @@ D4Box_CubeCopy(value) {
 
 D4Box_CubeStep(text) {
     fields := StrSplit(text, "|")
-    if (fields.Length != 9)
+    if (fields.Length != 9 && fields.Length != 11 && fields.Length != 12)
         throw Error(L("cube.invalidStep"))
     return {label: fields[1], action: fields[2], quality: fields[3]
         , x: Number(fields[4]), y: Number(fields[5]), delay: Integer(fields[6])
-        , color: fields[7], tolerance: Integer(fields[8]), timeout: Integer(fields[9])}
+        , color: fields[7], tolerance: Integer(fields[8]), timeout: Integer(fields[9])
+        , probeX: Number(fields.Length >= 11 ? fields[10] : fields[4])
+        , probeY: Number(fields.Length >= 11 ? fields[11] : fields[5])
+        , detectorId: fields.Length = 12 ? fields[12] : ""}
 }
 
 D4Box_CubeStepText(step) {
-    return (step.label "|" step.action "|" step.quality "|" step.x "|" step.y "|"
+    text := (step.label "|" step.action "|" step.quality "|" step.x "|" step.y "|"
         step.delay "|" step.color "|" step.tolerance "|" step.timeout)
+    if D4Box_DetectorId(step) != ""
+        return text "|0|0|" step.detectorId
+    return step.action = "confirm_if_present" ? text "|" step.probeX "|" step.probeY : text
 }
 
 D4Box_CubeValidate(profile, forRun := false) {
@@ -52,20 +58,33 @@ D4Box_CubeValidate(profile, forRun := false) {
         throw Error(L("cube.invalidLimits"))
     if profile.steps.Length = 0 || profile.steps.Length > 100
         throw Error(L("cube.invalidStepCount"))
+    detectors := false
     for step in profile.steps {
         if Trim(step.label) = "" || RegExMatch(step.label, "[|\r\n]")
             throw Error(L("cube.invalidStep"))
-        if !InStr("|select|execute|confirm|clear|wait|check|", "|" step.action "|")
+        if !InStr("|select|execute|confirm|clear|wait|check|rightclick|confirm_if_present|", "|" step.action "|")
             throw Error(L("cube.invalidStep"))
         if !InStr("|any|red|yellow|blue|", "|" step.quality "|")
             throw Error(L("cube.invalidQuality"))
-        if step.x < 0 || step.x > 1 || step.y < 0 || step.y > 1
+        if step.action != "rightclick" && (step.x < 0 || step.x > 1 || step.y < 0 || step.y > 1)
+            throw Error(L("cube.invalidPoint"))
+        detectorId := D4Box_DetectorId(step)
+        if detectorId != "" && (!RegExMatch(detectorId, "^region_[a-zA-Z0-9_]+$")
+            || (step.action != "check" && step.action != "confirm_if_present"))
+            throw Error(L("detect.invalid"))
+        if forRun && detectorId != "" {
+            if !IsObject(detectors)
+                detectors := D4Box_DetectorRead()
+            D4Box_DetectorRequire(detectorId, detectors)
+        }
+        if step.action = "confirm_if_present" && detectorId = "" && (!step.HasProp("probeX") || !step.HasProp("probeY")
+            || step.probeX < 0 || step.probeX > 1 || step.probeY < 0 || step.probeY > 1)
             throw Error(L("cube.invalidPoint"))
         if step.delay < 0 || step.delay > 10000 || step.timeout < 100 || step.timeout > 30000
             throw Error(L("cube.invalidLimits"))
         if step.tolerance < 0 || step.tolerance > 255
             throw Error(L("cube.invalidColor"))
-        if step.action = "check" && !RegExMatch(step.color, "i)^[0-9a-f]{6}$")
+        if detectorId = "" && (step.action = "check" || step.action = "confirm_if_present") && !RegExMatch(step.color, "i)^[0-9a-f]{6}$")
             throw Error(L("cube.invalidColor"))
     }
     if profile.ready != "" {
@@ -77,6 +96,11 @@ D4Box_CubeValidate(profile, forRun := false) {
         guardProfile.ready := ""
         guardProfile.steps := [guard]
         D4Box_CubeValidate(guardProfile)
+        if forRun && D4Box_DetectorId(guard) != "" {
+            if !IsObject(detectors)
+                detectors := D4Box_DetectorRead()
+            D4Box_DetectorRequire(guard.detectorId, detectors)
+        }
     }
     if forRun {
         if profile.source = "manual" {
@@ -84,6 +108,7 @@ D4Box_CubeValidate(profile, forRun := false) {
                 if step.quality != "any"
                     throw Error(L("cube.manualConditions"))
         }
+        issues := !profile.builtin && profile.ready = "" ? L("cube.missingReady") : ""
         qualities := D4Box_CubeQualities(profile)
         for quality in qualities {
             plan := D4Box_CubePlan(profile, quality)
@@ -94,10 +119,19 @@ D4Box_CubeValidate(profile, forRun := false) {
             if !hasExecute
                 throw Error(L("cube.emptyRoute", quality))
             ; Imported built-in keeps its legacy behavior. New workflows must verify UI state.
-            if !profile.builtin && (profile.ready = "" || plan[plan.Length].action != "check")
-                throw Error(L("cube.needChecks", quality))
+            if !profile.builtin && plan[plan.Length].action != "check"
+                issues .= (issues = "" ? "" : "`n") L("cube.missingFinal", L("cube." quality))
         }
+        if issues != ""
+            throw Error(issues)
     }
+}
+
+D4Box_CubeRunIssue(profile) {
+    try D4Box_CubeValidate(profile, true)
+    catch as err
+        return err.Message
+    return ""
 }
 
 D4Box_CubeQualities(profile) {
@@ -120,6 +154,18 @@ D4Box_CubePlan(profile, quality) {
     return result
 }
 
+; Existing inventory profiles still auto-load; explicit selection controls its own position.
+D4Box_CubeItemPlan(profile, quality) {
+    plan := D4Box_CubePlan(profile, quality)
+    if profile.source = "inventory" {
+        for step in plan
+            if step.action = "rightclick"
+                return plan
+        plan.InsertAt(1, D4Box_CubeStep(L("cube.rightclick") "|rightclick|any|0|0|250|-|24|3000"))
+    }
+    return plan
+}
+
 D4Box_CubeReadFile(file, builtin := false) {
     profiles := Map()
     if !FileExist(file)
@@ -131,7 +177,7 @@ D4Box_CubeReadFile(file, builtin := false) {
             sections[match[1]] := "Workflow." match[1]
     }
     for id, section in sections {
-        get := (key, fallback := "") => IniRead(file, section, key, fallback)
+        get := ((iniSection, key, fallback := "") => IniRead(file, iniSection, key, fallback)).Bind(section)
         profile := {id: id, name: builtin ? L(get("NameKey")) : get("Name"), nameEn: get("NameEn"), builtin: builtin
             , source: get("Source", "inventory"), quality: get("Quality", "red")
             , space: get("Space", "client"), maxItems: Integer(get("MaxItems", "33"))
