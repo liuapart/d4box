@@ -12,7 +12,52 @@ global appLang := "zh"
 
 ; 语言表：key -> {zh, en}
 global LANG_TABLE := Map(
-    "cube.selected", {zh: "已选用配方流程：{1}（游戏内 F3 执行）", en: "Selected workflow: {1} (F3 in game)"},
+    "main.saveMacro", {zh: "保存宏设置", en: "Save macro settings"},
+    "runtime.workflow", {zh: "流程执行中 · {1}", en: "Workflow running · {1}"},
+    "runtime.cancelling", {zh: "正在取消流程 · {1}", en: "Cancelling workflow · {1}"},
+    "runtime.step", {zh: "当前步骤：{1}", en: "Current step: {1}"},
+    "runtime.preparing", {zh: "正在准备并检查流程…", en: "Preparing and checking workflow…"},
+    "runtime.macroSuspended", {zh: "按键宏已暂停 · {1} · 正在执行流程", en: "Macro suspended · {1} · Workflow in progress"},
+    "runtime.macroRunning", {zh: "按键宏运行中 · {1}", en: "Macro running · {1}"},
+    "runtime.macroPaused", {zh: "按键宏已暂停 · {1}", en: "Macro paused · {1}"},
+    "runtime.macroKey", {zh: "游戏内按 {1} 停止宏，或点击右侧“停止宏”。", en: "Press {1} in game or use Stop macro to stop."},
+    "runtime.stopMacro", {zh: "停止宏", en: "Stop macro"},
+    "runtime.cancelWorkflow", {zh: "取消流程", en: "Cancel workflow"},
+    "runtime.idleHint", {zh: "流程使用各自的快捷键执行；按键宏请在“按键宏设置”页启动。", en: "Run workflows with their assigned keys; start macros on the Skill Macro tab."},
+    "binding.title", {zh: "流程快捷键", en: "Workflow hotkeys"},
+    "binding.subtitle", {zh: "为保存好的流程分配快捷键。默认绑定始终保留，键位和流程均可修改。", en: "Assign keys to saved workflows. The default binding stays; its key and workflow are editable."},
+    "binding.key", {zh: "快捷键", en: "Hotkey"},
+    "binding.workflow", {zh: "执行流程", en: "Workflow"},
+    "binding.state", {zh: "绑定类型", en: "Binding type"},
+    "binding.default", {zh: "默认 · 不可删除", en: "Default (required)"},
+    "binding.custom", {zh: "自定义", en: "Custom"},
+    "binding.add", {zh: "新增绑定", en: "Add binding"},
+    "binding.edit", {zh: "编辑绑定", en: "Edit binding"},
+    "binding.delete", {zh: "删除", en: "Delete"},
+    "binding.manage", {zh: "编辑流程…", en: "Edit workflows…"},
+    "binding.rename", {zh: "重命名配置", en: "Rename profile"},
+    "binding.save", {zh: "保存并生效", en: "Save and apply"},
+    "binding.saveOnly", {zh: "保存流程", en: "Save workflow"},
+    "binding.savedOnly", {zh: "流程已保存，原有快捷键绑定保持不变。", en: "Workflow saved. Existing key assignments are unchanged."},
+    "binding.savedDraft", {zh: "草稿已保存，执行前还需完善：{1}", en: "Draft saved. Before running, complete: {1}"},
+    "binding.cancel", {zh: "取消", en: "Cancel"},
+    "binding.hint", {zh: "切回游戏后按绑定键执行。执行中再次按任一流程快捷键取消；长按不会重复执行。`n绑定独立于按键宏配置，修改后立即保存。", en: "In game, press a bound key to run; any workflow key cancels while running. Holding a key does not repeat.`nBindings are global and saved immediately."},
+    "binding.defaultHint", {zh: "默认绑定不能删除，可以修改键位和流程。", en: "Default binding: change its key or workflow."},
+    "binding.keyHint", {zh: "点击快捷键框后按键，可组合 Ctrl / Alt / Shift。", en: "Press a key in the box; Ctrl / Alt / Shift are supported."},
+    "binding.invalidKey", {zh: "请设置键盘快捷键，可组合 Ctrl/Alt/Shift；Tab、鼠标键与单独修饰键不可用。", en: "Use a keyboard key with Ctrl/Alt/Shift. Tab, mouse keys and modifier-only keys are reserved."},
+    "binding.reserved", {zh: "Ctrl+Alt+F8 用于窗口诊断，请换一个快捷键。", en: "Ctrl+Alt+F8 is reserved for window diagnostics."},
+    "binding.duplicate", {zh: "快捷键 {1} 已有绑定，请换一个。", en: "Hotkey {1} is already assigned."},
+    "binding.macroConflict", {zh: "与宏启停键 {1} 冲突，请使用不同的主键。", en: "Conflicts with macro toggle {1}; choose a different base key."},
+    "binding.missing", {zh: "流程不存在：{1}", en: "Missing workflow: {1}"},
+    "binding.chooseWorkflow", {zh: "请选择一个已保存的流程。", en: "Choose a saved workflow."},
+    "binding.defaultRequired", {zh: "必须保留一条默认绑定，不能删除。", en: "Exactly one default binding is required; it cannot be deleted."},
+    "binding.limit", {zh: "支持 1～32 条快捷键绑定。", en: "Use between 1 and 32 bindings."},
+    "binding.invalidFile", {zh: "快捷键配置格式无效，请检查 workflow-hotkeys.ini。", en: "Invalid workflow-hotkeys.ini configuration."},
+    "binding.stopFirst", {zh: "请先停止按键宏、流程和截图采集，再修改绑定。", en: "Stop the macro, workflow and capture before changing bindings."},
+    "binding.referenced", {zh: "此流程仍被 {1} 绑定，请先修改或删除相关快捷键绑定。", en: "This workflow is bound to {1}. Reassign or remove those bindings first."},
+    "binding.unavailable", {zh: "未启用 · 需修复", en: "Disabled: needs repair"},
+    "binding.loadError", {zh: "快捷键未启用：{1}", en: "Workflow hotkeys disabled: {1}"},
+    "cube.selected", {zh: "默认绑定已选用流程：{1}", en: "Default binding now uses: {1}"},
     "cube.newProfile", {zh: "新建流程", en: "New workflow"},
     "cube.defaultName", {zh: "自动嬗变背包物品", en: "Transmute inventory items"},
     "cube.step.transmute", {zh: "选择嬗变", en: "Select transmute"},
@@ -22,7 +67,6 @@ global LANG_TABLE := Map(
     "cube.step.upgrade", {zh: "升级至传奇", en: "Upgrade to legendary"},
     "cube.step.clear", {zh: "清除", en: "Clear"},
     "cube.manualConditions", {zh: "单次物品模式的全部步骤需使用“全部／无条件”，不按背包品质分支。", en: "Single-item mode requires unconditional steps; inventory quality routing is unavailable."},
-    "cube.legacyYellowTip", {zh: "仅影响内置“自动嬗变背包物品”；自定义流程使用自己的品质筛选。", en: "Only affects the built-in inventory workflow; custom workflows use their own quality filter."},
     ; ---------- 魔盒流程 ----------
     "cube.title", {zh: "魔盒配方流程", en: "Cube workflows"},
     "cube.copy", {zh: "复制为新流程", en: "Copy as new"},
@@ -51,7 +95,7 @@ global LANG_TABLE := Map(
     "cube.deleteStep", {zh: "删除步骤", en: "Delete step"},
     "cube.up", {zh: "上移", en: "Move up"},
     "cube.down", {zh: "下移", en: "Move down"},
-    "cube.saveUse", {zh: "保存并选用", en: "Save and select"},
+    "cube.saveUse", {zh: "保存并设为默认流程", en: "Save as default workflow"},
     "cube.preview", {zh: "预览执行顺序", en: "Preview steps"},
     "cube.close", {zh: "关闭", en: "Close"},
     "cube.red", {zh: "传奇／暗金色", en: "Legendary/unique color"},
@@ -61,7 +105,7 @@ global LANG_TABLE := Map(
     "cube.any", {zh: "全部／无条件", en: "All / unconditional"},
     "cube.select", {zh: "选择配方", en: "Select recipe"},
     "cube.rightclick", {zh: "右键选择物品", en: "Right-click item"},
-    "cube.mouseTarget", {zh: "按 F3 时鼠标指向的物品", en: "Item under pointer when F3 was pressed"},
+    "cube.mouseTarget", {zh: "按流程快捷键时鼠标指向的物品", en: "Item under pointer when the workflow key was pressed"},
     "cube.inventoryTarget", {zh: "当前遍历的背包物品", en: "Current inventory item"},
     "cube.itemTargetNote", {zh: "右键目标：{1}。X/Y 自动确定，无需采集。背包流程已有此步骤时不会重复自动放入。", en: "Right-click target: {1}. X/Y is automatic; no capture needed. Explicit selection replaces automatic inventory loading."},
     "cube.noItemTarget", {zh: "没有可选择的物品目标，已停止流程。", en: "No item target is available; workflow stopped."},
@@ -124,12 +168,12 @@ global LANG_TABLE := Map(
     "cube.noReady", {zh: "未采集就绪标记。自定义流程运行前需要就绪标记及末尾颜色检查。", en: "No ready marker. Custom workflows need a ready marker and a final color check."},
     "cube.readySet", {zh: "已设置魔盒就绪标记", en: "Cube ready marker captured"},
     "cube.builtinNote", {zh: "内置旧版流程：保留原坐标和延时，未验证游戏结果。修改请先复制；升级黄装沿用主界面勾选项。", en: "Legacy built-in: original coordinates/delays, no result verification. Copy to edit; rare upgrades follow the main checkbox."},
-    "cube.customNote", {zh: "坐标范围 0～1。品质条件按放入前的品质判断。添加颜色检查可等待界面变化；选用后切回游戏按 F3。", en: "Coordinates: 0–1. Conditions use original quality. Add color checks to wait for UI changes. Return to the game and press F3."},
+    "cube.customNote", {zh: "坐标范围 0～1。品质条件按放入前的品质判断。添加颜色检查可等待界面变化；保存后在主界面分配快捷键。", en: "Coordinates: 0–1. Conditions use original quality. Add color checks to wait for UI changes. Assign a hotkey in the main window after saving."},
     "cube.newStep", {zh: "新步骤", en: "New step"},
     "cube.copyFirst", {zh: "内置流程不可覆盖，请先复制为新流程。", en: "Copy the built-in workflow before editing."},
     "cube.copySuffix", {zh: "副本", en: "copy"},
-    "cube.saved", {zh: "已保存并选用，运行前配置检查通过。切回魔盒界面按 F3 执行，再按 F3 取消。", en: "Saved and selected; pre-run configuration checks passed. In the cube UI press F3 to run/cancel."},
-    "cube.savedDraft", {zh: "已保存并选用，但当前尚不能执行：{1}", en: "Saved and selected, but not ready to run: {1}"},
+    "cube.saved", {zh: "已保存并设为默认流程，运行前配置检查通过。切回游戏按绑定键执行，再按任一流程快捷键取消。", en: "Saved and selected; pre-run configuration checks passed. In game, use a bound workflow key to run/cancel."},
+    "cube.savedDraft", {zh: "已保存并设为默认流程，但当前尚不能执行：{1}", en: "Saved and selected, but not ready to run: {1}"},
     "cube.cannotRun", {zh: "配方流程暂不能执行", en: "Workflow cannot run yet"},
     "cube.missingReady", {zh: "缺少就绪标记：请在魔盒打开且准备好执行时，使用“采集就绪标记”。", en: "Missing ready marker: use Capture ready marker while the cube is open and ready."},
     "cube.missingFinal", {zh: "{1}路径缺少末尾检查：最后添加“等待检测匹配”，采集流程完成后的界面标记。点击步骤中的颜色不会自动检查。", en: "The {1} route needs a final Wait for detection step sampling the completed UI. Colors in click steps are not checked automatically."},
@@ -138,7 +182,7 @@ global LANG_TABLE := Map(
     "cube.loadItem", {zh: "右键放入当前背包物品 → 等待 250ms", en: "Right-click inventory item → wait 250ms"},
     "cube.captureHint", {zh: "3 秒内切回游戏，把鼠标放到要采集的按钮或稳定色块上。", en: "Return to the game and point at the desired button/stable color within 3 seconds."},
     "cube.ready", {zh: "魔盒就绪", en: "Cube ready"},
-    "cube.busy", {zh: "流程正在执行，请先按 F3 取消。", en: "A workflow is running. Press F3 to cancel first."},
+    "cube.busy", {zh: "流程正在执行，请先按任一流程快捷键取消。", en: "A workflow is running. Press any workflow hotkey to cancel first."},
     "cube.invalidStep", {zh: "步骤格式无效；名称不能为空，也不能包含竖线或换行。", en: "Invalid step; names cannot be empty or contain pipes/newlines."},
     "cube.invalidName", {zh: "流程标识或名称无效。", en: "Invalid workflow ID or name."},
     "cube.invalidSource", {zh: "处理来源无效。", en: "Invalid input source."},
@@ -161,7 +205,7 @@ global LANG_TABLE := Map(
     "cube.missingProfile", {zh: "选用的流程不存在，请在配方流程窗口重新选择。", en: "Selected workflow is missing. Select one in the workflow editor."},
     "cube.noTargets", {zh: "背包中没有匹配的目标物品。", en: "No matching inventory items."},
     "cube.itemChanged", {zh: "背包第 {1} 行、第 {2} 列的物品状态已变化，停止执行。", en: "Inventory slot row {1}, column {2} changed; stopped."},
-    "cube.progress", {zh: "{1}：处理 {2}/{3}（F3 取消）", en: "{1}: processing {2}/{3} (F3 cancels)"},
+    "cube.progress", {zh: "{1}：处理 {2}/{3}（流程快捷键取消）", en: "{1}: processing {2}/{3} (workflow hotkey cancels)"},
     "cube.done", {zh: "已执行 {1} 个物品的配置步骤。", en: "Configured steps executed for {1} item(s)."},
     ; ---------- 通用 ----------
     "common.none",                  {zh: "无", en: "None"},
@@ -193,8 +237,8 @@ global LANG_TABLE := Map(
     "main.start",                   {zh: "开始", en: "Start"},
     "main.stop",                    {zh: "停止", en: "Stop"},
     "main.save",                    {zh: "保存设置", en: "Save settings"},
-    "main.hint",                    {zh: "提示：启停键可配置 | F3 运行选定配方/取消（魔盒界面）| Tab 查看地图暂停 | 仅暗黑4窗口生效"
-                                   , en: "Tips: toggle key configurable | F3 selected workflow/cancel (cube UI) | Tab map pauses | D4 window only"},
+    "main.hint",                    {zh: "仅游戏前台启动流程 · Tab / 鼠标点击可中断流程"
+                                   , en: "Start workflows in game · Tab / mouse clicks interrupt"},
     "main.ready",                   {zh: "就绪", en: "Ready"},
 
     ; ---------- 技能行 ----------
@@ -218,41 +262,6 @@ global LANG_TABLE := Map(
     "strategy.hold",                {zh: "按住", en: "Hold"},
 
     ; ---------- 额外设置 ----------
-    "extra.shift",                  {zh: "按住 Shift", en: "Hold Shift"},
-    "extra.debugLog",               {zh: "调试日志", en: "Debug log"},
-    "extra.debugLog.tip",           {zh: "关闭后不再写日志文件；开启后可在 settings.ini 里把 DebugLogVerbose 设为 1 记录每次按键明细"
-                                   , en: "When off, nothing is written to the log file; when on, set DebugLogVerbose=1 in settings.ini to log every key press"},
-    "extra.clearLog",               {zh: "清理日志", en: "Clear log"},
-    "extra.dodge",                  {zh: "翻滚：", en: "Dodge:"},
-    "extra.key.space",              {zh: "空格", en: "Space"},
-    "extra.potion",                 {zh: "喝药：", en: "Potion:"},
-    "extra.healthCheck",            {zh: "血量检测", en: "HP check"},
-    "extra.healthCheck.tip",        {zh: "按血球液面自动判断血量，低于阈值才喝药；建议把喝药间隔改成 1000~2000ms"
-                                   , en: "Estimate HP from the health globe and drink only below the threshold; set the potion interval to 1000~2000 ms"},
-    "extra.shieldSafe",             {zh: "护盾遮挡时不喝药", en: "Skip if shielded"},
-    "extra.shieldSafe.tip",         {zh: "护盾盖住血球时读不出血量：勾选=视为安全跳过；取消=照常喝药（适合常驻护盾的构筑）"
-                                   , en: "A shield covering the globe hides the HP: checked = treat as safe and skip; unchecked = drink anyway (builds with a permanent shield)"},
-    "extra.forceMove",              {zh: "强移：", en: "Force move:"},
-    "extra.mouseAutoMove",          {zh: "鼠标自动移动", en: "Auto mouse move"},
-    "extra.pauseOnClick",           {zh: "鼠标点击时暂停宏", en: "Pause on click"},
-    "extra.compass",                {zh: "罗盘专用", en: "Compass mode"},
-    "extra.upgradeYellow",          {zh: "升级黄装", en: "Upgrade rares"},
-    "extra.transmute",              {zh: "配方流程…", en: "Cube workflows…"},
-    "extra.transmuteHelp.tip",      {zh: "打开说明文档", en: "Open the documentation"},
-    ; 说明文档链接跟着界面语言走：中文看 README.md，英文看 README_EN.md
-    "extra.transmuteHelp.url",      {zh: "https://github.com/duzefu/D4keyHelp#readme"
-                                   , en: "https://github.com/duzefu/D4keyHelp/blob/main/README_EN.md"},
-    "extra.threshold",              {zh: "血量阈值：", en: "HP threshold:"},
-    "extra.threshold.tip",          {zh: "血量低于该百分比才喝药（血球液面高度换算，50 即球心位置）"
-                                   , en: "Drink only below this HP percentage (derived from the globe's liquid level; 50 is the orb center)"},
-    "extra.testGlobe",              {zh: "检测血球", en: "Test globe"},
-    "extra.testGlobe.tip",          {zh: "点后 3 秒识别血球（留时间切回游戏）：球心位置、当前血量与判定结果显示在下方状态栏"
-                                   , en: "Detects the globe 3 seconds after clicking (time to switch back to the game); the center, current HP and verdict appear in the status bar"},
-    "extra.healthUnknown",          {zh: "未检测（点「检测血球」后切回游戏）", en: "Not tested (click `"Test globe`")"},
-    "extra.healthStatus.tip",       {zh: "最近一次识别到的血量读数（宏运行中会自动刷新）"
-                                   , en: "Latest detected HP reading (refreshed automatically while the macro runs)"},
-
-    ; ---------- 运行状态 ----------
     "state.idle",                   {zh: "未运行", en: "Not running"},
     "state.running",                {zh: "运行中", en: "Running"},
     "state.paused",                 {zh: "已暂停", en: "Paused"},
@@ -276,8 +285,8 @@ global LANG_TABLE := Map(
     "bar.clickResumed",             {zh: "宏已从鼠标点击暂停中恢复", en: "Macro resumed after the click pause"},
 
     ; ---------- 状态栏（自动嬗变） ----------
-    "bar.transmuteProgress",        {zh: "正在处理第 {1}/{2} 个物品[{3}]（F3 取消）"
-                                   , en: "Processing item {1}/{2} [{3}] (F3 cancels)"},
+    "bar.transmuteProgress",        {zh: "正在处理第 {1}/{2} 个物品[{3}]（流程快捷键取消）"
+                                   , en: "Processing item {1}/{2} [{3}] (workflow hotkey cancels)"},
     "bar.transmuteLabel.red",       {zh: "红装重塑", en: "reforge legendary"},
     "bar.transmuteLabel.yellow",    {zh: "黄装升传奇", en: "rare to legendary"},
     "bar.transmuteNoTargetRed",     {zh: "自动嬗变：装备栏/背包没有识别到暗金/传奇装备"
@@ -300,9 +309,9 @@ global LANG_TABLE := Map(
     "status.presetRenamed",         {zh: "配置{1}已重命名为: {2}", en: "Profile {1} renamed to: {2}"},
     "rename.title",                 {zh: "重命名配置{1}", en: "Rename profile {1}"},
     "rename.prompt",                {zh: "请输入新的配置名称:", en: "Enter a new profile name:"},
-    "status.themeStopFirst",        {zh: "请先停止宏再切换主题", en: "Stop the macro before switching themes"},
+    "status.themeStopFirst",        {zh: "请先停止宏、流程及采集再切换主题", en: "Stop macros, workflows and capture before switching themes"},
     "status.themeFailed",           {zh: "切换主题失败: {1}", en: "Failed to switch theme: {1}"},
-    "status.langStopFirst",         {zh: "请先停止宏再切换语言", en: "Stop the macro before switching languages"},
+    "status.langStopFirst",         {zh: "请先停止宏、流程及采集再切换语言", en: "Stop macros, workflows and capture before switching languages"},
     "status.langFailed",            {zh: "切换语言失败: {1}", en: "Failed to switch language: {1}"},
 
     ; ---------- 启停键 ----------
@@ -316,32 +325,7 @@ global LANG_TABLE := Map(
     "status.logCleared",            {zh: "日志已清理，释放 {1} KB", en: "Logs cleared, {1} KB freed"},
 
     ; ---------- 血量检测 ----------
-    "health.off",                   {zh: "血量检测已关闭（回到按间隔定时喝药）", en: "HP check off - back to a fixed potion interval"},
-    "health.onAdjusted",            {zh: "血量检测已开启：喝药间隔已从 {1}ms 调整为 1500ms"
-                                   , en: "HP check on - potion interval changed from {1} ms to 1500 ms"},
-    "health.on",                    {zh: "血量检测已开启，点「检测血球」可确认识别结果"
-                                   , en: "HP check on - click `"Test globe`" to verify detection"},
-    "health.testing",               {zh: "3 秒后检测血球，请切回游戏并让血球露出来…"
-                                   , en: "Testing the globe in 3 seconds - switch back to the game and keep the globe visible…"},
-    "health.testAborted",           {zh: "检测中断：暗黑4 窗口不在前台，血球被别的窗口挡住时读不到"
-                                   , en: "Test aborted: the D4 window is not in the foreground, so the globe is covered and cannot be read"},
-    "health.result.drink",          {zh: "会喝药", en: "drinks"},
-    "health.result.noDrink",        {zh: "不喝药", en: "no potion"},
-    "health.result.ok",             {zh: "血球已识别：球心({1},{2}) 半径{3} · 当前血量≈{4}%（阈值 {5}% → {6}）"
-                                   , en: "Globe detected: center ({1},{2}) radius {3} · HP ≈ {4}% (threshold {5}% → {6})"},
-    "health.result.shield",         {zh: "血球被护盾遮挡（护盾占比 {1}%），读不到血量"
-                                   , en: "Globe covered by a shield ({1}%), HP cannot be read"},
-    "health.result.fail",           {zh: "未识别到血球：{1}", en: "Globe not detected: {1}"},
-    "health.ui.ok",                 {zh: "血量 {1}%（阈值 {2}%）", en: "HP {1}% (threshold {2}%)"},
-    "health.ui.shield",             {zh: "护盾遮挡血球，读不到血量", en: "Shield covers the globe, HP unreadable"},
-    "health.ui.fail",               {zh: "未识别到血球", en: "Globe not detected"},
 
-    ; ---------- 血球识别失败原因（显示在状态栏 / 检测结果里） ----------
-    "globe.err.capture",            {zh: "屏幕截图失败", en: "screen capture failed"},
-    "globe.err.noLiquid",           {zh: "血球内没有检测到血液（窗口液体占比 {1}%；取景球心 {2},{3}）"
-                                   , en: "no blood found inside the globe (liquid ratio {1}%; sampled center {2},{3})"},
-    "globe.retry.soft",             {zh: "液面附近缺少亮红液体，已按保守方式估算"
-                                   , en: "little bright red near the liquid surface, estimated conservatively"}
 )
 
 /**

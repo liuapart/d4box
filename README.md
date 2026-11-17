@@ -2,16 +2,18 @@
 
 暗黑 IV 辅助工具：Windows AHK 主程序与独立的 macOS/Windows 配置编辑器。在 macOS 开发，游戏交互在 Windows 验证。
 
+主界面分为“流程快捷键”和“按键宏设置”两页。默认流程绑定初始为 F3，可修改键位和对应流程，但不能删除；可新增其他键位执行不同的已保存流程。绑定独立于四套宏配置，修改后立即保存。血球检测、辅助喝药、翻滚、强移、自动移动、点击暂停和罗盘辅助已移除，旧 INI 中的这些开关不再加载或执行。
+
 项目已将 D4KeyHelp 的 AHK 源码迁入主仓库，由 d4box 直接维护，不再使用 submodule。来源与许可记录见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+宏启停键配置、开始／停止按钮和“保存宏设置”位于“按键宏设置”页；公共底部只显示运行状态、停止／取消入口、通知及主题／语言。切换页面不影响热键生效。执行流程时底部显示流程名称和当前步骤；原有宏暂停期间会明确提示。空闲时不显示公共停止按钮，点击公共“取消流程”会让战斗宏保持暂停。
 
 ## 已迁入的能力
 
 - 图形化配置、四组预设、中英文和明暗主题。
 - 技能与鼠标宏：连点、维持 BUFF、按住，以及自定义按键和执行间隔。
-- 翻滚、喝药、强制移动、鼠标移动、罗盘辅助。
-- 血球颜色与液面识别、条件喝药和护盾处理。
 - 装备格颜色识别、可配置的魔盒步骤执行器；内置背包嬗变及可选黄装升级流程。
-- 配方流程编辑器：复制内置流程、编辑步骤、采集位置与颜色、预览并保存；F3 执行当前选用流程。
+- 配方流程编辑器：复制内置流程、编辑步骤、采集位置与颜色、预览并保存；默认 F3 执行绑定流程，可改键并增加其他流程快捷键。
 - 检测区域库：命名、截图框选模板、测试面板出现/关闭，保存后供流程的就绪检查、等待检测和可选接受共用；旧单点颜色检查保持兼容。
 - 窗口切换暂停、手动点击暂停、退出时释放按键、配置持久化和日志轮转。
 - d4box 窗口诊断：游戏在前台时按 **Ctrl+Alt+F8**，显示并记录客户区位置和尺寸。
@@ -24,12 +26,12 @@ AHK 与游戏交互尚无本项目的真实 Windows/游戏内验收记录。内�
 app/ahk/
   D4Box.ahk        应用入口
   core/           状态、定时器、窗口和宏控制
-  functions/      技能、鼠标、魔盒、血球和诊断
+  functions/      技能、鼠标、魔盒和诊断
   gui/            界面控件
   hotkeys/        热键
   utils/          配置、日志、多语言
   config/         内置魔盒流程数据
-  tests/          Windows 冒烟、流程与血球测试
+  tests/          Windows 冒烟、流程与快捷键测试
 app/editor/       独立 Qt 配置编辑器、Schema、模板与 CTest
 scripts/          启动器、开发/打包脚本与仓库检查
 docs/             架构、验证清单、上游文档快照
@@ -83,7 +85,7 @@ SDK 选择、参数及 Windows 入口见 [编辑器开发说明](app/editor/READ
 .\scripts\start-windows.ps1 -AhkPath 'C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe'
 ```
 
-启动后只有一个 d4box 进程。默认 F1 启停宏，F3 执行选用的魔盒流程，Ctrl+Alt+F8 显示窗口诊断。先阅读 [Windows 验证清单](docs/windows-validation.md)，在游戏中验证配置和识别位置后再启用自动操作。
+启动后只有一个 d4box 进程。默认 F1 启停宏，默认 F3 执行绑定的魔盒流程（键位与流程可修改），Ctrl+Alt+F8 显示窗口诊断。先阅读 [Windows 验证清单](docs/windows-validation.md)，在游戏中验证配置和识别位置后再启用自动操作。
 
 Windows 编辑器开发启动器会自动加载 VS 2022 x64 编译环境，再构建、运行 CTest 并打开开发版。无需完整 VS IDE：安装 **Visual Studio 2022 Build Tools** 的“使用 C++ 的桌面开发”（含 MSVC v143 x64/x86 与 Windows SDK），并准备 Python 3.10+、CMake、Ninja 和 Qt 6 MSVC Base + SVG SDK；普通 PowerShell 即可运行。Build Tools 的 C++ CMake 工具也提供 Ninja。已按 CI 方式把 SDK 安装到仓库 `.runtime/editor/qt/6.11.3/msvc2022_64` 时：
 
@@ -111,7 +113,6 @@ bash app/ahk/tests/run.sh smoke
 bash app/ahk/tests/run.sh workflow
 ```
 
-血球回归使用上游本地截图样本，这些图片和生成的 `.bin` 不在原仓库中，因此当前克隆不能直接完成血球回归。补齐对应样本并安装 Pillow 后，才可运行 `bash app/ahk/tests/run.sh globe --export`。详见验证清单。
 
 后续可以直接修改 `app/ahk` 中的源码，重构方案见 [架构说明](docs/architecture.md)。
 

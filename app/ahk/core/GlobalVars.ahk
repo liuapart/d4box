@@ -11,22 +11,21 @@ global previouslyPaused := false
 
 ; GUI相关变量
 global myGui := ""
+global D4Box_MainTabs := ""
 global statusText := ""
 global statusBar := ""
+global D4Box_RuntimeDetail := ""
+global D4Box_RuntimeStop := ""
+global D4Box_RuntimeAction := ""
+global D4Box_MacroSave := ""
+global D4Box_WorkflowName := ""
+global D4Box_WorkflowStep := ""
 global skillControls := Map()
 global skillBuffControls := Map()
 global mouseControls := {}
-global utilityControls := {}
 
 ; 功能状态变量
-global shiftEnabled := false
-global mouseAutoMoveEnabled := false
-global mouseAutoMoveCurrentPoint := 1
-global pauseOnClickEnabled := false  ; 添加鼠标点击暂停功能状态变量
-global temporaryPaused := false      ; 添加临时暂停状态变量
-global compassEnabled := false       ; 罗盘专用功能状态变量
-global compassPaused := false        ; 罗盘操作时的暂停状态
-global isAutoTransmuting := false    ; 自动嬗变运行状态（F3再次按下可取消）
+global isAutoTransmuting := false    ; 自动嬗变运行状态（流程快捷键再次按下可取消）
 global D4Box_CubeBusy := false
 global D4Box_CubeUI := ""
 global D4Box_CubeCapturePending := false
@@ -42,18 +41,6 @@ global skillModeNames := [L("strategy.click"), L("strategy.buff"), L("strategy.h
 ; 策略下拉框选项（禁用=1, 连点=2, 维持BUFF=3, 按住=4）
 ; 存到 settings.ini 的是下拉框序号，所以翻译不会影响已有配置
 global strategyNames := [L("strategy.off"), L("strategy.click"), L("strategy.buff"), L("strategy.hold")]
-
-; 条件喝药（血量检测）
-global healthCheckEnabled := false                                  ; 是否启用血量检测
-global healthStatusText := ""                                       ; 界面上显示血量/识别结果的控件
-global healthLastState := ""                                        ; 最近一次识别状态：ok / shield / fail
-global healthLastPct := -1                                          ; 最近一次血量读数
-global healthUiTick := 0                                            ; 界面文本刷新节流时间戳
-global healthUiState := ""                                          ; 界面上一次显示的状态（变化时立即刷新）
-global healthCacheTick := 0                                         ; 血球识别结果的缓存时间
-global healthCacheState := ""                                       ; 血球识别结果缓存
-global HEALTH_CACHE_MS := 500                                       ; 识别结果缓存时长，避免喝药间隔过小时反复截图
-global lastPotionTick := 0                                          ; 上次喝药时间（防止连按）
 
 ; 动作栏（技能栏）槽位坐标：不再写死在 2K 上，改为按屏幕尺寸推算
 ; 标定值与算法见 functions/SkillSystem.ahk 顶部注释和 GetSkillSlotPos()
@@ -76,9 +63,6 @@ global hotkeyChangeInProgress := false
 global registeredStartStopHotkey := ""
 
 ; 控件变量
-global mouseAutoMove := {}        ; 鼠标自动移动控件
-global pauseOnClick := {}         ; 鼠标点击暂停控件
-global compassControl := {}       ; 罗盘专用控件
 
 ; 预设配置变量
 global currentPreset := 1                                    ; 当前选中的预设索引 (1-4)

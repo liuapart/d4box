@@ -58,8 +58,6 @@ SaveSettings(*) {
         ; 保存各类设置（带预设前缀）
         SaveSkillSettings(settingsFile, prefix)
         SaveMouseSettings(settingsFile, prefix)
-        SaveUtilitySettings(settingsFile, prefix)
-        SaveCompassSettings(settingsFile, prefix)
 
         statusBar.Text := L("status.settingsSaved", presetNames[currentPreset])
         DebugLog("所有设置已保存到: " settingsFile " [预设" . currentPreset . ": " . presetNames[currentPreset] . "]")
@@ -215,8 +213,6 @@ SwitchPreset(targetIndex) {
         prefix := GetPresetPrefix()
         SaveSkillSettings(settingsFile, prefix)
         SaveMouseSettings(settingsFile, prefix)
-        SaveUtilitySettings(settingsFile, prefix)
-        SaveCompassSettings(settingsFile, prefix)
         DebugLog("切换前保存预设" . currentPreset . "完成")
 
         ; 切换到目标预设
@@ -227,8 +223,6 @@ SwitchPreset(targetIndex) {
         prefix := GetPresetPrefix()
         LoadSkillSettings(settingsFile, prefix)
         LoadMouseSettings(settingsFile, prefix)
-        LoadUtilitySettings(settingsFile, prefix)
-        LoadCompassSettings(settingsFile, prefix)
         StripThousandsSeparators()
 
         statusBar.Text := L("status.presetSwitched", presetNames[currentPreset])
@@ -349,7 +343,7 @@ SaveSkillSettings(file, prefix := "") {
  * @param {String} prefix - Section前缀（如 "Preset1_"）
  */
 SaveMouseSettings(file, prefix := "") {
-    global mouseControls, mouseAutoMove, pauseOnClick
+    global mouseControls
     section := prefix . "Mouse"
 
     ; 左右键技能行的按键（存键名；输入无效时存最后一次有效按键，与运行时一致）
@@ -370,38 +364,6 @@ SaveMouseSettings(file, prefix := "") {
     IniWrite(mouseControls.right.random.Value, file, section, "RightClickRandom")
     DebugLog("保存右键策略: " mouseControls.right.strategy.Value)
 
-    ; 保存自动移动设置
-    IniWrite(mouseAutoMove.enable.Value, file, section, "MouseAutoMoveEnable")
-    IniWrite(mouseAutoMove.interval.Value, file, section, "MouseAutoMoveInterval")
-
-    ; 保存点击暂停设置
-    IniWrite(pauseOnClick.enable.Value, file, section, "PauseOnClickEnable")
-    IniWrite(pauseOnClick.interval.Value, file, section, "PauseOnClickInterval")
-}
-
-/**
- * 保存功能键设置
- * @param {String} file - 设置文件路径
- * @param {String} prefix - Section前缀（如 "Preset1_"）
- */
-SaveUtilitySettings(file, prefix := "") {
-    global utilityControls
-    section := prefix . "Utility"
-
-    IniWrite(utilityControls.dodge.enable.Value, file, section, "DodgeEnable")
-    IniWrite(utilityControls.dodge.interval.Value, file, section, "DodgeInterval")
-    IniWrite(utilityControls.potion.key.Value, file, section, "PotionKey")
-    IniWrite(utilityControls.potion.enable.Value, file, section, "PotionEnable")
-    IniWrite(utilityControls.potion.interval.Value, file, section, "PotionInterval")
-    IniWrite(utilityControls.forceMove.key.Value, file, section, "ForceMoveKey")
-    IniWrite(utilityControls.forceMove.enable.Value, file, section, "ForceMoveEnable")
-    IniWrite(utilityControls.forceMove.interval.Value, file, section, "ForceMoveInterval")
-    IniWrite(utilityControls.upgradeYellow.enable.Value, file, section, "UpgradeYellowEnable")
-
-    ; 血量检测（条件喝药）
-    IniWrite(utilityControls.healthCheck.enable.Value, file, section, "HealthCheckEnable")
-    IniWrite(utilityControls.healthCheck.threshold.Value, file, section, "HealthThreshold")
-    IniWrite(utilityControls.healthCheck.shieldSafe.Value, file, section, "HealthShieldSafe")
 }
 
 /**
@@ -415,19 +377,6 @@ SaveGeneralSettings(file) {
     IniWrite(LOG_VERBOSE ? 1 : 0, file, "General", "DebugLogVerbose")
     IniWrite(MUI_Theme, file, "UI", "Theme")
     IniWrite(appLang, file, "UI", "Language")
-}
-
-/**
- * 保存罗盘专用设置
- * @param {String} file - 设置文件路径
- * @param {String} prefix - Section前缀（如 "Preset1_"）
- */
-SaveCompassSettings(file, prefix := "") {
-    global compassControl
-    section := prefix . "Compass"
-
-    IniWrite(compassControl.enable.Value, file, section, "CompassEnable")
-    IniWrite(compassControl.interval.Value, file, section, "CompassInterval")
 }
 
 /**
@@ -450,7 +399,6 @@ LoadSettings() {
         }
 
         LoadHotkeySettings(settingsFile)
-        LoadGeneralSettings(settingsFile)
 
         ; 更新预设Tab显示
         UpdatePresetTabs()
@@ -459,8 +407,6 @@ LoadSettings() {
         prefix := GetPresetPrefix()
         LoadSkillSettings(settingsFile, prefix)
         LoadMouseSettings(settingsFile, prefix)
-        LoadUtilitySettings(settingsFile, prefix)
-        LoadCompassSettings(settingsFile, prefix)
         StripThousandsSeparators()
 
         DebugLog("所有设置已从文件加载: " settingsFile " [预设" . currentPreset . ": " . presetNames[currentPreset] . "]")
@@ -560,7 +506,7 @@ LoadSkillSettings(file, prefix := "") {
  * @param {String} prefix - Section前缀（如 "Preset1_"）
  */
 LoadMouseSettings(file, prefix := "") {
-    global mouseControls, mouseAutoMove, mouseAutoMoveEnabled, pauseOnClick, pauseOnClickEnabled
+    global mouseControls
     global MOUSE_SLOT_DEFAULTS
     section := prefix . "Mouse"
 
@@ -585,57 +531,9 @@ LoadMouseSettings(file, prefix := "") {
         mouseControls.right.random.Value := IniRead(file, section, "RightClickRandom", 1)
         ChooseStrategy(mouseControls.right, rightStrategy)
 
-        ; 加载自动移动设置
-        mouseAutoMove.enable.Value := IniRead(file, section, "MouseAutoMoveEnable", 0)
-        mouseAutoMove.interval.Value := IniRead(file, section, "MouseAutoMoveInterval", 1000)
-        mouseAutoMoveEnabled := (mouseAutoMove.enable.Value = 1)
-
-        ; 加载点击暂停设置
-        pauseOnClick.enable.Value := IniRead(file, section, "PauseOnClickEnable", 0)
-        pauseOnClick.interval.Value := IniRead(file, section, "PauseOnClickInterval", 3000)
-        pauseOnClickEnabled := (pauseOnClick.enable.Value = 1)
-
         DebugLog("加载鼠标设置 - 左键策略: " leftStrategy ", 右键策略: " rightStrategy)
     } catch as err {
         DebugLog("加载鼠标设置出错: " err.Message)
-    }
-}
-
-/**
- * 加载功能键设置
- * @param {String} file - 设置文件路径
- * @param {String} prefix - Section前缀（如 "Preset1_"）
- */
-LoadUtilitySettings(file, prefix := "") {
-    global utilityControls, healthCheckEnabled
-    section := prefix . "Utility"
-
-    try {
-        utilityControls.dodge.enable.Value := IniRead(file, section, "DodgeEnable", 0)
-        utilityControls.dodge.interval.Value := IniRead(file, section, "DodgeInterval", 1000)
-
-        utilityControls.potion.key.Value := IniRead(file, section, "PotionKey", "q")
-        utilityControls.potion.enable.Value := IniRead(file, section, "PotionEnable", 0)
-        utilityControls.potion.interval.Value := IniRead(file, section, "PotionInterval", 15000)
-
-        utilityControls.forceMove.key.Value := IniRead(file, section, "ForceMoveKey", "``")
-        utilityControls.forceMove.enable.Value := IniRead(file, section, "ForceMoveEnable", 0)
-        utilityControls.forceMove.interval.Value := IniRead(file, section, "ForceMoveInterval", 50)
-
-        utilityControls.upgradeYellow.enable.Value := IniRead(file, section, "UpgradeYellowEnable", 0)
-
-        ; 血量检测（条件喝药）
-        utilityControls.healthCheck.enable.Value := IniReadInt(file, section, "HealthCheckEnable", 0)
-        utilityControls.healthCheck.threshold.Value := IniReadInt(file, section, "HealthThreshold", 50)
-        utilityControls.healthCheck.shieldSafe.Value := IniReadInt(file, section, "HealthShieldSafe", 1)
-        healthCheckEnabled := (utilityControls.healthCheck.enable.Value = 1)
-        UpdateHealthStatusText()
-
-        DebugLog("加载功能键设置完成 - 血量检测: " (healthCheckEnabled ? "启用" : "禁用")
-            . "，阈值: " utilityControls.healthCheck.threshold.Value "%"
-            . "，护盾遮挡跳过: " (utilityControls.healthCheck.shieldSafe.Value = 1 ? "是" : "否"))
-    } catch as err {
-        DebugLog("加载功能键设置出错: " err.Message)
     }
 }
 
@@ -655,42 +553,5 @@ IniReadInt(file, section, key, default) {
         return Integer(value)
     } catch {
         return default
-    }
-}
-
-/**
- * 加载全局设置（不随预设切换）
- * @param {String} file - 设置文件路径
- */
-LoadGeneralSettings(file) {
-    global utilityControls, DEBUG, LOG_VERBOSE
-
-    try {
-        ; DEBUG / LOG_VERBOSE 已由 InitLogging 读取，这里只同步界面勾选状态
-        utilityControls.debugLog.Value := DEBUG ? 1 : 0
-        DebugLog("加载全局设置完成 - 记录日志: " (DEBUG ? "开启" : "关闭")
-            . "，明细日志: " (LOG_VERBOSE ? "开启" : "关闭"))
-    } catch as err {
-        DebugLog("加载全局设置出错: " err.Message)
-    }
-}
-
-/**
- * 加载罗盘专用设置
- * @param {String} file - 设置文件路径
- * @param {String} prefix - Section前缀（如 "Preset1_"）
- */
-LoadCompassSettings(file, prefix := "") {
-    global compassControl, compassEnabled
-    section := prefix . "Compass"
-
-    try {
-        compassControl.enable.Value := IniRead(file, section, "CompassEnable", 0)
-        compassControl.interval.Value := IniRead(file, section, "CompassInterval", 65000)
-        compassEnabled := (compassControl.enable.Value = 1)
-
-        DebugLog("加载罗盘专用设置 - 状态: " . (compassEnabled ? "启用" : "禁用") . ", 间隔: " . compassControl.interval.Value)
-    } catch as err {
-        DebugLog("加载罗盘专用设置出错: " err.Message)
     }
 }

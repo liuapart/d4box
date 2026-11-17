@@ -14,10 +14,11 @@
 #Include "..\core\TimerManager.ahk"
 #Include "..\core\MacroControl.ahk"
 #Include "..\core\HotkeyManager.ahk"
+#Include "..\core\WorkflowHotkeys.ahk"
 #Include "..\gui\ModernUI.ahk"
 #Include "..\gui\MainGUI.ahk"
+#Include "..\gui\WorkflowHotkeysGUI.ahk"
 #Include "..\gui\SkillControls.ahk"
-#Include "..\gui\MouseControls.ahk"
 #Include "..\gui\CubeWorkflowGUI.ahk"
 #Include "..\functions\SkillSystem.ahk"
 #Include "..\functions\MouseActions.ahk"
@@ -27,11 +28,10 @@
 #Include "..\functions\DetectionRegions.ahk"
 #Include "..\gui\DetectionRegionsGUI.ahk"
 #Include "..\functions\CubeRunner.ahk"
-#Include "..\functions\HealthGlobe.ahk"
-#Include "..\functions\ConditionSystem.ahk"
 #Include "..\functions\WindowDiagnostics.ahk"
 #Include "..\hotkeys\GameHotkeys.ahk"
 #Include "DetectionRegionsTest.ahk"
+#Include "WorkflowHotkeysTest.ahk"
 
 report := A_ScriptDir "\smoke_result.txt"
 if FileExist(report)
@@ -43,9 +43,17 @@ Append(text) {
 
 try {
     InitializeGUI()
+    OnExit(CleanupOnExit, 0) ; Test never starts combat; do not release keys into other apps.
     Append "GUI 创建成功"
 } catch as err {
     Append "GUI 创建失败: " err.Message " @" err.File ":" err.Line
+}
+
+try {
+    D4Box_TestBindingsNative()
+    Append "流程快捷键注册、持久化、回滚与原生界面正常"
+} catch as err {
+    Append "流程快捷键异常: " err.Message " @" err.File ":" err.Line
 }
 
 try {
@@ -115,20 +123,6 @@ try {
 }
 
 try {
-    TestHealthDetect()
-    DetectHealthGlobeDelayed()
-    Append "检测血球回调正常: " statusBar.Text
-} catch as err {
-    Append "检测血球按钮回调异常: " err.Message " @" err.File ":" err.Line
-}
-try {
-    OnHealthCheckToggled({Value: 1}, 0)
-    OnHealthCheckToggled({Value: 0}, 0)
-    Append "血量检测开关回调正常"
-} catch as err {
-    Append "血量检测开关回调异常: " err.Message " @" err.File ":" err.Line
-}
-try {
     ; 左右键技能行的按键框：下拉项 / 键盘键 / 鼠标侧键 / 无效输入
     ctrl := mouseControls.left.key
     got := []
@@ -161,6 +155,20 @@ try {
     Append "保存设置正常"
 } catch as err {
     Append "保存设置异常: " err.Message " @" err.File ":" err.Line
+}
+
+try {
+    D4Box_TestRuntimeFooter()
+    Append "分页控件归属、公共运行状态与取消入口正常"
+} catch as err {
+    Append "公共运行状态异常: " err.Message " @" err.File ":" err.Line
+}
+
+try {
+    D4Box_TestMainVariants()
+    Append "中英文与明暗主题页面创建正常"
+} catch as err {
+    Append "主界面主题异常: " err.Message " @" err.File ":" err.Line
 }
 
 SetTimer(Quit, -1500)

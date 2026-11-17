@@ -3,10 +3,6 @@
 
 ^!F8::D4Box_ShowWindowInfo()
 
-#HotIf WinActive("ahk_class Diablo IV Main Window Class") || D4Box_CubeBusy
-#MaxThreadsPerHotkey 2
-*F3::AutoTransmute()
-#MaxThreadsPerHotkey 1
 #HotIf WinActive("ahk_class Diablo IV Main Window Class")
 
 Tab::{
@@ -39,7 +35,7 @@ Tab::{
 ; 添加鼠标钩子监听
 LButton::
 RButton::{
-    global isRunning, isPaused, pauseOnClickEnabled, temporaryPaused, pauseOnClick, D4Box_CubeBusy
+    global D4Box_CubeBusy
     interruptedCube := D4Box_CubeBusy
     if interruptedCube
         D4Box_InterruptCube()
@@ -59,18 +55,6 @@ RButton::{
     if interruptedCube
         return
 
-    ; 检查是否需要暂停宏
-    if (isRunning && !isPaused && pauseOnClickEnabled) {
-        ; 暂停宏
-        StopAllTimers()
-        temporaryPaused := true
-        UpdateStatus("tempPaused", L("bar.clickPaused"))
-        DebugLog("检测到鼠标点击，临时暂停宏")
-
-        ; 设置恢复定时器
-        pauseInterval := ToInt(pauseOnClick.interval.Value)
-        SetTimer(ResumeAfterClickPause, pauseInterval)
-    }
 }
 
 #HotIf

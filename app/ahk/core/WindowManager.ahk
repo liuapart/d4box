@@ -53,17 +53,8 @@ OnWindowChange(isActive) {
 UpdateStatus(stateKey, barText, statusLabel := "") {
     global statusText, statusBar
     label := (statusLabel != "") ? statusLabel : L("state." stateKey)
-    statusText.Value := L("main.status.prefix") . label
-    ; 根据状态着色：运行中=绿，暂停=橙，其他=灰
-    switch stateKey {
-        case "running":
-            color := "10B981"
-        case "paused", "pausedWindow", "tempPaused":
-            color := "F59E0B"
-        default:
-            color := MUI_Hex(MUI_T.muted)
-    }
-    statusText.SetFont("c" color)
     statusBar.Text := barText
+    statusBar.ToolTip := barText
+    D4Box_RefreshRuntimeStatus()
     DebugLog("状态更新: " label " | " barText)
 }

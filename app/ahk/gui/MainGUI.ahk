@@ -3,91 +3,61 @@
  * 创建主GUI界面
  */
 CreateMainGUI() {
-    global myGui, statusText, statusBar, presetTab, presetNames, currentPreset
+    global myGui, statusText, statusBar, presetTab, presetNames, currentPreset, D4Box_MainTabs
     global startStopHotkeyCtrl, startStopMouseCtrl, startStopButton
-    global MUI_FontName, MUI_T, MUI_Theme, MUI_CardBg
-
+    global D4Box_RuntimeDetail, D4Box_RuntimeStop, D4Box_MacroSave
+    global MUI_FontName, MUI_T, MUI_Theme
     MUI_SetTheme(MUI_LoadThemeSetting(A_ScriptDir "\settings.ini"))
     MUI_Startup()
-
-    title := "c" MUI_Hex(MUI_T.title)
-    text := "c" MUI_Hex(MUI_T.text)
-    muted := "c" MUI_Hex(MUI_T.muted)
-    faint := "c" MUI_Hex(MUI_T.faint)
-
-    ; 创建主窗口
     myGui := Gui("", L("app.title"))
     myGui.BackColor := MUI_Hex(MUI_T.window)
-    myGui.SetFont("s10 " text, MUI_FontName)
+    myGui.SetFont("s10 c" MUI_Hex(MUI_T.text), MUI_FontName)
     myGui.MarginX := 12
     myGui.MarginY := 12
 
-    ; ========== 预设分段选择器 ==========
-    presetTab := ModernSegmented(myGui, 12, 12, 92, 40, presetNames)
+    D4Box_MainTabs := myGui.AddTab3("x12 y12 w696 h386 -Theme Background" MUI_Hex(MUI_T.window), [L("binding.title"), L("main.section.skills")])
+    D4Box_MainTabs.UseTab(1)
+    D4Box_CreateBindingsGUI()
+    D4Box_MainTabs.UseTab(2)
+    myGui.SetFont("s9 norm")
+    presetTab := myGui.AddDropDownList("x32 y54 w250 Choose1", presetNames)
     presetTab.OnEvent("Change", OnPresetTabChange)
     presetTab.OnEvent("ContextMenu", OnPresetTabRightClick)
-
-    myGui.SetFont("s9 " faint, MUI_FontName)
-    myGui.AddText("x408 y24 w144 h20 Right", L("main.renameHint"))
-
-    ; 主题切换（按钮上显示点击后会切到的主题）
-    themeButton := ModernButton(myGui, 556, 16, 78, 32
-        , MUI_Theme = "dark" ? L("main.theme.toLight") : L("main.theme.toDark")
-        , "secondary", {bg: MUI_T.window, fontSize: 9, radius: 8})
-    themeButton.OnEvent("Click", ToggleTheme)
-    themeButton.ctrl.ToolTip := L("main.theme.tip")
-
-    ; 界面语言切换（同样显示点击后会切到的语言：中文 ⇄ English）
-    langButton := ModernButton(myGui, 642, 16, 66, 32, Lang_SwitchButtonText()
-        , "secondary", {bg: MUI_T.window, fontSize: 9, radius: 8})
-    langButton.OnEvent("Click", ToggleLanguage)
-    langButton.ctrl.ToolTip := L("main.lang.tip")
-
-    ; ========== 按键宏设置卡片 ==========
-    MUI_AddCard(myGui, 12, 64, 696, 300)
-    myGui.SetFont("s11 bold " title, MUI_FontName)
-    myGui.AddText("x32 y78 w200 h24 " MUI_CardBg, L("main.section.skills"))
-
-    ; 列标题
-    myGui.SetFont("s9 bold " muted, MUI_FontName)
-    myGui.AddText("x130 y108 w75 center " MUI_CardBg, L("main.col.hotkey"))
-    myGui.AddText("x215 y108 w95 center " MUI_CardBg, L("main.col.strategy"))
-    myGui.AddText("x320 y108 w125 center " MUI_CardBg, L("main.col.interval"))
-    myGui.AddText("x450 y108 w100 center " MUI_CardBg, L("main.col.delay"))
-    myGui.AddText("x555 y108 w70 center " MUI_CardBg, L("main.col.random"))
-
-    ; 创建技能行
-    myGui.SetFont("s10 norm " text, MUI_FontName)
+    myGui.AddText("x294 y58 w270 h22", L("main.renameHint"))
+    myGui.AddButton("x580 y50 w108 h28", L("binding.rename")).OnEvent("Click", (*) => RenamePreset(currentPreset))
+    myGui.AddText("x130 y94 w75 Center", L("main.col.hotkey"))
+    myGui.AddText("x215 y94 w95 Center", L("main.col.strategy"))
+    myGui.AddText("x320 y94 w125 Center", L("main.col.interval"))
+    myGui.AddText("x450 y94 w100 Center", L("main.col.delay"))
+    myGui.AddText("x555 y94 w90 Center", L("main.col.random"))
+    myGui.SetFont("s10")
     CreateSkillRows()
-
-    ; ========== 额外设置卡片 ==========
-    MUI_AddCard(myGui, 12, 376, 696, 284)
-    myGui.SetFont("s11 bold " title, MUI_FontName)
-    myGui.AddText("x32 y390 w200 h24 " MUI_CardBg, L("main.section.extra"))
-    myGui.SetFont("s10 norm " text, MUI_FontName)
-    CreateExtraSettings()
-
-    ; ========== 底部控制卡片 ==========
-    MUI_AddCard(myGui, 12, 672, 696, 60)
-    myGui.SetFont("s11 bold", MUI_FontName)
-    statusText := myGui.AddText("x32 y690 w180 h26 " MUI_CardBg, L("main.status.prefix") L("state.idle"))
-    statusText.SetFont(muted)  ; 初始未运行=灰
-
-    myGui.SetFont("s9 norm " text, MUI_FontName)
-    myGui.AddText("x212 y693 w50 h22 right " MUI_CardBg, L("main.toggle.label"))
-    startStopHotkeyCtrl := myGui.AddHotkey("x266 y688 w70", "F1")
-    startStopMouseCtrl := myGui.AddDropDownList("x342 y688 w80 Choose1"
+    ; Configuration and start actions belong to the macro tab.
+    myGui.SetFont("s9 norm")
+    myGui.AddText("x32 y362 w92 h22", L("main.toggle.label"))
+    startStopHotkeyCtrl := myGui.AddHotkey("x128 y356 w96", "F1")
+    startStopMouseCtrl := myGui.AddDropDownList("x232 y356 w104 Choose1"
         , [L("main.toggle.keyboard"), L("main.toggle.middle"), L("main.toggle.side1"), L("main.toggle.side2")])
-
-    startStopButton := ModernButton(myGui, 434, 682, 160, 40, L("main.start") "  (F1)", "primary", {fontSize: 11, radius: 10})
+    startStopButton := ModernButton(myGui, 388, 350, 144, 36, L("main.start") " (F1)", "primary"
+        , {bg: MUI_T.window, fontSize: 10, radius: 8})
     startStopButton.OnEvent("Click", ToggleMacro)
-    ModernButton(myGui, 602, 682, 94, 40, L("main.save"), "secondary", {fontSize: 10, radius: 10}).OnEvent("Click", SaveSettings)
-
+    D4Box_MacroSave := myGui.AddButton("x544 y350 w144 h36", L("main.saveMacro"))
+    D4Box_MacroSave.OnEvent("Click", SaveSettings)
     startStopHotkeyCtrl.OnEvent("Change", OnStartStopKeyboardChanged)
     startStopMouseCtrl.OnEvent("Change", OnStartStopMouseChanged)
+    D4Box_MainTabs.UseTab()
 
-    myGui.SetFont("s9 " faint, MUI_FontName)
-    myGui.AddText("x16 y740 w688 h20", L("main.hint"))
+    myGui.SetFont("s10 bold")
+    statusText := myGui.AddText("x20 y410 w528 h24 +0x4000", "")
+    myGui.SetFont("s9 norm")
+    D4Box_RuntimeStop := myGui.AddButton("x560 y406 w148 h32 Hidden", "")
+    D4Box_RuntimeStop.OnEvent("Click", D4Box_StopFromFooter)
+    D4Box_RuntimeDetail := myGui.AddText("x20 y438 w688 h34", "")
+    statusBar := myGui.AddText("x20 y476 w688 h20 +0x4000", "")
+    myGui.AddText("x20 y506 w496 h22", L("main.hint"))
+    myGui.AddButton("x532 y500 w92 h28", MUI_Theme = "dark" ? L("main.theme.toLight") : L("main.theme.toDark")).OnEvent("Click", ToggleTheme)
+    myGui.AddButton("x632 y500 w76 h28", Lang_SwitchButtonText()).OnEvent("Click", ToggleLanguage)
+    D4Box_RefreshRuntimeStatus()
 }
 
 /**
@@ -105,19 +75,15 @@ InitializeGUI() {
     ; 创建主GUI
     CreateMainGUI()
 
-    ; 底部状态条（用 Text 代替 StatusBar，以便跟随主题配色）
-    footerOpt := " +0x200 Background" MUI_Hex(MUI_T.footer)
-    myGui.SetFont("s9 norm c" MUI_Hex(MUI_T.muted), MUI_FontName)
-    myGui.AddText("x0 y762 w720 h28" footerOpt, "")
-    statusBar := myGui.AddText("x14 y762 w700 h28" footerOpt, L("main.ready"))
     MUI_ApplyNativeTheme(myGui)
 
     ; 先加载设置（在Show之前，避免Tab2内的DropDownList渲染不刷新）
     LoadSettings()
     RegisterStartStopHotkey()
+    D4Box_BindingsInit()
 
     ; 显示GUI（此时下拉框值已正确设置，首次渲染即为正确状态）
-    myGui.Show("w720 h794")
+    myGui.Show("w720 h532")
 
     ; 强制重绘窗口，确保所有控件（尤其是Tab2内的DropDownList）正确显示
     WinRedraw(myGui.Hwnd)
@@ -161,14 +127,68 @@ UpdateStartStopButton() {
     key := GetStartStopHotkeyDisplay()
     startStopButton.Text := (isRunning ? L("main.stop") : L("main.start")) . "  (" . key . ")"
     startStopButton.SetStyle(isRunning ? "danger" : "primary")
+    D4Box_RefreshRuntimeStatus()
+}
+
+; Derive live status from the executor state, independently of transient save messages.
+D4Box_RefreshRuntimeStatus() {
+    global statusText, D4Box_RuntimeDetail, D4Box_RuntimeStop, D4Box_RuntimeAction, MUI_T
+    global isRunning, isPaused, D4Box_CubeBusy, isAutoTransmuting, presetNames, currentPreset
+    global D4Box_WorkflowName, D4Box_WorkflowStep
+    if !IsObject(D4Box_RuntimeStop)
+        return
+    detail := "", action := "", color := MUI_Hex(MUI_T.muted)
+    if D4Box_CubeBusy {
+        name := D4Box_WorkflowName != "" ? D4Box_WorkflowName : L("runtime.preparing")
+        title := L(isAutoTransmuting ? "runtime.workflow" : "runtime.cancelling", name)
+        detail := D4Box_WorkflowStep != "" ? L("runtime.step", D4Box_WorkflowStep) : L("runtime.preparing")
+        if isRunning
+            detail .= "`n" L("runtime.macroSuspended", presetNames[currentPreset])
+        action := "workflow"
+        D4Box_RuntimeStop.Text := L("runtime.cancelWorkflow")
+        D4Box_RuntimeStop.Enabled := isAutoTransmuting
+        color := "F59E0B"
+    } else if isRunning {
+        title := L(isPaused ? "runtime.macroPaused" : "runtime.macroRunning", presetNames[currentPreset])
+        detail := L("runtime.macroKey", GetStartStopHotkeyDisplay())
+        action := "macro"
+        D4Box_RuntimeStop.Text := L("runtime.stopMacro")
+        D4Box_RuntimeStop.Enabled := true
+        color := isPaused ? "F59E0B" : "10B981"
+    } else {
+        title := L("main.ready")
+        detail := L("runtime.idleHint")
+    }
+    statusText.Text := title
+    statusText.ToolTip := title
+    statusText.SetFont("c" color)
+    D4Box_RuntimeDetail.Text := detail
+    D4Box_RuntimeDetail.ToolTip := detail
+    D4Box_RuntimeAction := action
+    D4Box_RuntimeStop.Visible := action != ""
+}
+
+; This control can only stop/cancel. A late queued click must never start a macro.
+D4Box_StopFromFooter(*) {
+    global D4Box_RuntimeAction, D4Box_CubeBusy, isRunning
+    Critical "On"
+    try {
+        if D4Box_RuntimeAction = "workflow" && D4Box_CubeBusy
+            D4Box_InterruptCube()
+        else if D4Box_RuntimeAction = "macro" && isRunning && !D4Box_CubeBusy
+            ToggleMacro()
+        D4Box_RefreshRuntimeStatus()
+    } finally {
+        Critical "Off"
+    }
 }
 
 /**
  * 切换浅色/深色主题（保存后重新加载脚本生效）
  */
 ToggleTheme(*) {
-    global isRunning, statusBar, MUI_Theme
-    if (isRunning) {
+    global isRunning, statusBar, MUI_Theme, D4Box_CubeBusy, D4Box_CubeCapturePending
+    if (isRunning || D4Box_CubeBusy || D4Box_CubeCapturePending) {
         statusBar.Text := L("status.themeStopFirst")
         return
     }
@@ -188,8 +208,8 @@ ToggleTheme(*) {
  * 与切换主题同一套路：宏运行中不允许，避免运行中被重载打断
  */
 ToggleLanguage(*) {
-    global isRunning, statusBar, appLang
-    if (isRunning) {
+    global isRunning, statusBar, appLang, D4Box_CubeBusy, D4Box_CubeCapturePending
+    if (isRunning || D4Box_CubeBusy || D4Box_CubeCapturePending) {
         statusBar.Text := L("status.langStopFirst")
         return
     }

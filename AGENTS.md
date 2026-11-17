@@ -27,7 +27,7 @@
 ## 检查层级
 
 - 每次提交前在仓库根目录运行：`python3 scripts/check_project.py`、`python3 -m unittest discover -s scripts/tests -v`、`bash -n app/ahk/tests/run.sh`、`git diff --check`。修改发布或打包时额外运行 `python3 -Werror scripts/package_editor_windows.py --self-test`、相关 `py_compile` / `sh -n`；编辑器改动需运行 CTest。
-- Windows Git Bash 上运行 `bash app/ahk/tests/run.sh validate`、`bash app/ahk/tests/run.sh workflow`、`bash app/ahk/tests/run.sh smoke`。血球回归还需本地截图样本、Pillow 及 `globe` 测试；样本和生成的 `.bin` 不入库。不要在 macOS 上宣称 AHK 通过。
+- Windows Git Bash 上运行 `bash app/ahk/tests/run.sh validate`、`bash app/ahk/tests/run.sh workflow`、`bash app/ahk/tests/run.sh smoke`。血球/喝药辅助已裁剪，不再运行 globe 测试。不要在 macOS 上宣称 AHK 通过。
 - 区分四层证据：仓库静态检查、编辑器/模拟器离线测试、Windows/macOS CI 原生打包与启动、真实 Windows/游戏人工验证。每层只报告实际覆盖的内容；CI 不验证游戏操作、最低系统版本或干净机器安装。
 
 ## Release 与更新

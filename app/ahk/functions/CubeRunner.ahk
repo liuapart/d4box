@@ -200,6 +200,9 @@ class D4Box_CubeAdapter {
     }
 
     Report(step) {
+        global D4Box_WorkflowStep
+        D4Box_WorkflowStep := step.label
+        D4Box_RefreshRuntimeStatus()
         DebugLog("魔盒步骤: " step.label " [" step.action "]")
     }
 }
@@ -207,6 +210,7 @@ class D4Box_CubeAdapter {
 D4Box_CancelCube(*) {
     global isAutoTransmuting
     isAutoTransmuting := false
+    D4Box_RefreshRuntimeStatus()
 }
 
 ; Manual UI changes/focus loss also leave combat paused, preventing a restart on the wrong screen.
@@ -217,12 +221,14 @@ D4Box_InterruptCube() {
         isPaused := true
         previouslyPaused := true
     }
+    D4Box_RefreshRuntimeStatus()
 }
 
-; F3 starts the selected workflow, or cancels the current one. Busy stays latched until finally.
-AutoTransmute(*) {
+; A bound key starts its workflow, or cancels the current one. Busy stays latched until finally.
+AutoTransmute(profileId := "", *) {
     global D4Box_CubeCapturePending
-    global D4Box_CubeBusy, isAutoTransmuting, isRunning, isPaused, previouslyPaused, utilityControls
+    global D4Box_CubeBusy, isAutoTransmuting, isRunning, isPaused, previouslyPaused
+    global D4Box_WorkflowName, D4Box_WorkflowStep
     if D4Box_CubeBusy {
         D4Box_CancelCube()
         return
@@ -235,6 +241,8 @@ AutoTransmute(*) {
 
     D4Box_CubeBusy := true
     isAutoTransmuting := true
+    D4Box_WorkflowName := "", D4Box_WorkflowStep := ""
+    D4Box_RefreshRuntimeStatus()
     shouldResume := isRunning && !isPaused
     oldMouseMode := A_CoordModeMouse
     oldPixelMode := A_CoordModePixel
@@ -245,19 +253,18 @@ AutoTransmute(*) {
     startupError := ""
     try {
         StopAllTimers()
-        SetTimer(ResumeAfterClickPause, 0)
         ReleaseAllKeys()
         CoordMode "Mouse", "Screen"
         CoordMode "Pixel", "Screen"
         ; Capture once before any workflow step can move the pointer.
         MouseGetPos(&itemMouseX, &itemMouseY)
         profiles := D4Box_CubeProfiles()
-        selected := D4Box_CubeSelectedId()
+        selected := profileId != "" ? profileId : D4Box_DefaultBindingProfile()
         if !profiles.Has(selected)
             throw Error(L("cube.missingProfile"))
         profile := D4Box_CubeCopy(profiles[selected])
-        if profile.legacyYellow && utilityControls.HasProp("upgradeYellow") && utilityControls.upgradeYellow.enable.Value
-            profile.quality := "redyellow"
+        D4Box_WorkflowName := D4Box_CubeProfileName(profile)
+        D4Box_RefreshRuntimeStatus()
         D4Box_CubeValidate(profile, true)
         validated := true
         frame := D4Box_CubeFrame(hwnd, profile.space)
@@ -305,6 +312,8 @@ AutoTransmute(*) {
         D4Box_CubeBusy := false
         if shouldResume && isRunning && !isPaused && WinActive("ahk_id " hwnd)
             StartAllTimers()
+        D4Box_WorkflowName := "", D4Box_WorkflowStep := ""
+        D4Box_RefreshRuntimeStatus()
     }
     if startupError != ""
         MsgBox(startupError, L("cube.cannotRun"))

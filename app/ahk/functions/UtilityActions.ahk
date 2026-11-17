@@ -4,76 +4,7 @@
  * @param {String} key - 要发送的按键
  */
 SendKey(key) {
-    global shiftEnabled
-
-    if (shiftEnabled) {
-        Send "{Shift down}"
-        Sleep 10
-        Send "{" key "}"
-        Sleep 10
-        Send "{Shift up}"
-    } else {
-        Send "{" key "}"
-    }
-}
-
-/**
- * 按下翻滚键(空格)
- */
-PressDodge() {
-    global isRunning, isPaused, utilityControls
-
-    if (isRunning && !isPaused && utilityControls.dodge.enable.Value = 1) {
-        SendKey("Space")
-        DebugLog("按下翻滚键", 2)
-    }
-}
-
-/**
- * 按下喝药键
- * 启用"血量检测"时，先读血球液面估算血量，低于阈值才喝
- */
-PressPotion() {
-    global isRunning, isPaused, utilityControls, healthCheckEnabled, lastPotionTick
-
-    if (!isRunning || isPaused || utilityControls.potion.enable.Value != 1)
-        return
-
-    if (healthCheckEnabled) {
-        if (!ShouldDrinkPotion()) {
-            DebugLog("血量未低于阈值，跳过喝药", 2)
-            return
-        }
-
-        ; 血量持续偏低时不要连续按键（游戏内药水也有冷却）
-        if (A_TickCount - lastPotionTick < 1500) {
-            DebugLog("喝药冷却中，跳过", 2)
-            return
-        }
-    }
-
-    key := utilityControls.potion.key.Value
-    if (key = "")
-        return
-
-    SendKey(key)
-    lastPotionTick := A_TickCount
-    DebugLog("按下喝药键: " key, 2)
-}
-
-/**
- * 按下强制移动键
- */
-PressForceMove() {
-    global isRunning, isPaused, utilityControls
-
-    if (isRunning && !isPaused && utilityControls.forceMove.enable.Value = 1) {
-        key := utilityControls.forceMove.key.Value
-        if (key != "") {
-            SendKey(key)
-            DebugLog("按下强制移动键: " key, 2)
-        }
-    }
+    Send "{" key "}"
 }
 
 /**

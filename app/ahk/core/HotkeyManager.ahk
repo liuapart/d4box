@@ -12,15 +12,19 @@ IsMouseStartStopHotkey(hotkey) {
 }
 
 IsForbiddenStartStopHotkey(hotkey) {
+    global D4Box_WorkflowBindings
     hotkey := NormalizeStartStopHotkey(hotkey)
     if (hotkey = "")
         return true
 
     keyName := RegExReplace(hotkey, "[\^\!\+#]", "")
     keyName := StrUpper(keyName)
+    for row in D4Box_WorkflowBindings
+        if D4Box_BindingBase(row.key) = D4Box_BindingBase(hotkey)
+            return true
     return (keyName = "LBUTTON"
         || keyName = "RBUTTON"
-        || keyName = "F3"
+        || keyName = "F8"
         || keyName = "TAB")
 }
 
@@ -31,9 +35,9 @@ GetStartStopHotkeyDisplay(hotkey := "") {
         hotkey := startStopHotkey
 
     hotkey := NormalizeStartStopHotkey(hotkey)
-    display := StrReplace(hotkey, "^", "Ctrl+")
+    display := StrReplace(hotkey, "+", "Shift+")
+    display := StrReplace(display, "^", "Ctrl+")
     display := StrReplace(display, "!", "Alt+")
-    display := StrReplace(display, "+", "Shift+")
     display := StrReplace(display, "#", "Win+")
     return display
 }
@@ -117,6 +121,13 @@ RegisterStartStopHotkey(newHotkey := "") {
 
 ApplyStartStopHotkey(newHotkey, shouldSave := true) {
     global statusBar
+
+    try D4Box_BindingsEditable()
+    catch as err {
+        statusBar.Text := err.Message
+        UpdateStartStopHotkeyUi()
+        return false
+    }
 
     if (RegisterStartStopHotkey(newHotkey)) {
         if (shouldSave)

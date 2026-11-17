@@ -12,14 +12,8 @@ StartAllTimers() {
     ; 启动技能定时器
     StartSkillTimers()
 
-    ; 启动鼠标和功能键定时器
-    StartUtilityTimers()
-
-    ; 启动鼠标自动移动定时器
-    StartMouseAutoMoveTimer()
-
-    ; 启动罗盘专用定时器
-    StartCompassTimer()
+    ; 启动左右键技能定时器
+    D4Box_StartMouseTimers()
 
     DebugLog("所有定时器已启动")
 }
@@ -69,71 +63,12 @@ StartSkillTimers() {
 }
 
 /**
- * 启动鼠标和功能键定时器
+ * 启动左右键技能定时器
  */
-StartUtilityTimers() {
+D4Box_StartMouseTimers() {
     ; 鼠标控件使用策略模式
     StartStrategyTimer("leftClick", mouseControls.left, PressLeftClick)
     StartStrategyTimer("rightClick", mouseControls.right, PressRightClick)
-    ; 功能键控件使用启用模式
-    StartSingleTimer("dodge", utilityControls.dodge, PressDodge)
-    StartSingleTimer("potion", utilityControls.potion, PressPotion)
-    StartSingleTimer("forceMove", utilityControls.forceMove, PressForceMove)
-}
-
-/**
- * 启动鼠标自动移动定时器
- */
-StartMouseAutoMoveTimer() {
-    global mouseAutoMoveEnabled, mouseAutoMove, timerStates
-
-    DebugLog("鼠标自动移动状态: " . (mouseAutoMoveEnabled ? "启用" : "禁用") . ", GUI勾选状态: " . mouseAutoMove.enable.Value)
-
-    if (mouseAutoMoveEnabled) {
-        interval := ToInt(mouseAutoMove.interval.Value)
-        if (interval > 0) {
-            SetTimer(MoveMouseToNextPoint, interval)
-            timerStates["mouseAutoMove"] := true
-            DebugLog("启动鼠标自动移动定时器 - 间隔: " interval, 2)
-        }
-    }
-}
-
-/**
- * 启动罗盘专用定时器
- */
-StartCompassTimer() {
-    global compassEnabled, compassControl, timerStates
-
-    DebugLog("罗盘专用状态: " . (compassEnabled ? "启用" : "禁用") . ", GUI勾选状态: " . compassControl.enable.Value)
-
-    if (compassEnabled) {
-        interval := ToInt(compassControl.interval.Value)
-        if (interval > 0) {
-            SetTimer(CompassClick, interval)
-            timerStates["compass"] := true
-            DebugLog("启动罗盘专用定时器 - 间隔: " interval, 2)
-        }
-    }
-}
-
-/**
- * 启动单个定时器
- * @param {String} name - 定时器名称
- * @param {Object} control - 控件对象
- * @param {Function} timerFunc - 定时器函数
- */
-StartSingleTimer(name, control, timerFunc) {
-    global timerStates
-
-    if (control.enable.Value = 1) {
-        interval := ToInt(control.interval.Value)
-        if (interval > 0) {
-            SetTimer(timerFunc, interval)
-            timerStates[name] := true
-            DebugLog("启动" name "定时器 - 间隔: " interval, 2)
-        }
-    }
 }
 
 /**
@@ -177,12 +112,6 @@ StopAllTimers() {
     ; 停止所有其他定时器
     SetTimer PressLeftClick, 0
     SetTimer PressRightClick, 0
-    SetTimer PressDodge, 0
-    SetTimer PressPotion, 0
-    SetTimer PressForceMove, 0
-    SetTimer MoveMouseToNextPoint, 0
-    SetTimer ResumeAfterClickPause, 0  ; 停止临时暂停的恢复定时器
-    SetTimer CompassClick, 0           ; 停止罗盘专用定时器
 
     ; 重置所有按住模式的按键状态
     ResetAllHoldKeyStates()

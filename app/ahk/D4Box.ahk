@@ -22,12 +22,13 @@ A_IconTip := "d4box"
 #Include "core/TimerManager.ahk"
 #Include "core/MacroControl.ahk"
 #Include "core/HotkeyManager.ahk"
+#Include "core/WorkflowHotkeys.ahk"
 
 ; GUI模块
 #Include "gui/ModernUI.ahk"
 #Include "gui/MainGUI.ahk"
+#Include "gui/WorkflowHotkeysGUI.ahk"
 #Include "gui/SkillControls.ahk"
-#Include "gui/MouseControls.ahk"
 #Include "gui/CubeWorkflowGUI.ahk"
 
 ; 功能模块
@@ -39,8 +40,6 @@ A_IconTip := "d4box"
 #Include "functions/DetectionRegions.ahk"
 #Include "gui/DetectionRegionsGUI.ahk"
 #Include "functions/CubeRunner.ahk"
-#Include "functions/HealthGlobe.ahk"
-#Include "functions/ConditionSystem.ahk"
 #Include "functions/WindowDiagnostics.ahk"
 
 ; 热键定义

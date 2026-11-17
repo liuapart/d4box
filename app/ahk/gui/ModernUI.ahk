@@ -82,6 +82,12 @@ MUI_ApplyNativeTheme(gui) {
 
     for ctrl in gui {
         switch ctrl.Type {
+            case "Button":
+                ; Native light buttons must keep readable text under a dark parent.
+                ctrl.SetFont("c202020")
+            case "ListView":
+                ctrl.Opt("Background" MUI_Hex(MUI_T.input))
+                ctrl.SetFont("c" MUI_Hex(MUI_T.inputText))
             case "Edit", "ComboBox":
                 ctrl.Opt("Background" MUI_Hex(MUI_T.input))
                 ctrl.SetFont("c" MUI_Hex(MUI_T.inputText))

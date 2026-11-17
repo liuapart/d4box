@@ -1,4 +1,4 @@
-; Workflow editor. Saving/selecting never sends input to the game; F3 runs the saved selection.
+; Workflow editor. Saving never sends input; dynamic hotkeys run saved workflow IDs.
 D4Box_OpenCubeEditor(*) {
     global D4Box_CubeUI, D4Box_CubeBusy, D4Box_CubeCapturePending
     if D4Box_CubeCapturePending
@@ -74,9 +74,10 @@ D4Box_OpenCubeEditor(*) {
             , ["up", "cube.up", 478], ["down", "cube.down", 632]]
             editor.AddButton("x" spec[3] " y555 w128", L(spec[2])).OnEvent("Click", D4Box_CubeEditStep.Bind(spec[1]))
         ui.note := editor.AddText("x16 y598 w744 h42")
-        editor.AddButton("x16 y652 w230", L("cube.saveUse")).OnEvent("Click", D4Box_CubeSaveEditor)
-        editor.AddButton("x264 y652 w230", L("cube.preview")).OnEvent("Click", D4Box_CubePreview)
-        editor.AddButton("x512 y652 w248", L("cube.close")).OnEvent("Click", D4Box_CubeCloseEditor)
+        editor.AddButton("x16 y652 w130", L("binding.saveOnly")).OnEvent("Click", D4Box_CubeSaveEditor.Bind(false))
+        editor.AddButton("x156 y652 w254", L("cube.saveUse")).OnEvent("Click", D4Box_CubeSaveEditor.Bind(true))
+        editor.AddButton("x420 y652 w164", L("cube.preview")).OnEvent("Click", D4Box_CubePreview)
+        editor.AddButton("x594 y652 w166", L("cube.close")).OnEvent("Click", D4Box_CubeCloseEditor)
         for control in [ui.name, ui.source, ui.quality, ui.space, ui.maxItems, ui.timeout]
             control.OnEvent("Change", D4Box_CubeDirty)
         for control in [ui.label, ui.action, ui.when, ui.x, ui.y, ui.delay, ui.color, ui.tolerance, ui.checkTimeout, ui.probeX, ui.probeY]
@@ -87,7 +88,7 @@ D4Box_OpenCubeEditor(*) {
         ui.list.OnEvent("ItemSelect", D4Box_CubeSelectStep)
         editor.OnEvent("Close", D4Box_CubeCloseEditor)
         editor.OnEvent("Escape", D4Box_CubeCloseEditor)
-        D4Box_CubeRefreshProfiles(D4Box_CubeSelectedId())
+        D4Box_CubeRefreshProfiles(D4Box_DefaultBindingProfile())
         editor.Show("w780 h697")
     } catch as err {
         if IsObject(D4Box_CubeUI)
@@ -476,7 +477,7 @@ D4Box_CubeCopyProfile(*) {
     }
 }
 
-D4Box_CubeSaveEditor(*) {
+D4Box_CubeSaveEditor(useDefault := true, *) {
     global D4Box_CubeUI, D4Box_CubeBusy
     if D4Box_CubeBusy
         return
@@ -484,17 +485,25 @@ D4Box_CubeSaveEditor(*) {
     try {
         p := D4Box_CubeReadEditor()
         D4Box_CubeValidate(p)
-        D4Box_CubeSave(p.builtin ? "" : p, p.id)
+        D4Box_BindingsEditable()
+        ; Persist content first. The default binding is the only selection authority;
+        ; a failed binding save must not change the legacy migration selection.
+        if !p.builtin
+            D4Box_CubeSave(p)
+        if useDefault
+            D4Box_BindingsSelectDefault(p.id)
+        else
+            D4Box_BindingsRefresh()
         ui.profiles[p.id] := p
         D4Box_CubeRefreshProfiles(p.id)
         issue := D4Box_CubeRunIssue(p)
         if issue != "" {
-            ui.note.Text := L("cube.savedDraft", issue)
-            UpdateStatus("idle", L("cube.savedDraft", issue))
-            MsgBox(L("cube.savedDraft", issue), L("cube.cannotRun"))
+            ui.note.Text := L("binding.savedDraft", issue)
+            UpdateStatus("idle", L("binding.savedDraft", issue))
+            MsgBox(L("binding.savedDraft", issue), L("cube.cannotRun"))
         } else {
-            ui.note.Text := L("cube.saved")
-            UpdateStatus("idle", L("cube.selected", D4Box_CubeProfileName(p)))
+            ui.note.Text := L(useDefault ? "cube.saved" : "binding.savedOnly")
+            UpdateStatus("idle", useDefault ? L("cube.selected", D4Box_CubeProfileName(p)) : L("binding.savedOnly"))
         }
     } catch as err {
         MsgBox(err.Message, "d4box")
@@ -506,6 +515,11 @@ D4Box_CubeDeleteProfile(*) {
     ui := D4Box_CubeUI
     if ui.profile.builtin {
         MsgBox(L("cube.copyFirst"), "d4box")
+        return
+    }
+    keys := D4Box_BindingReferences(ui.profile.id)
+    if keys != "" {
+        MsgBox(L("binding.referenced", keys), "d4box")
         return
     }
     if MsgBox(L("cube.deleteQuestion"), "d4box", "YesNo") != "Yes"
@@ -520,11 +534,9 @@ D4Box_CubeDeleteProfile(*) {
 }
 
 D4Box_CubePreview(*) {
-    global D4Box_CubeUI, utilityControls
+    global D4Box_CubeUI
     try {
         p := D4Box_CubeReadEditor()
-        if p.legacyYellow && utilityControls.upgradeYellow.enable.Value
-            p.quality := "redyellow"
         D4Box_CubeValidate(p)
         text := D4Box_CubeProfileName(p) "`r`n" L("cube.previewNote") "`r`n"
         for quality in D4Box_CubeQualities(p) {

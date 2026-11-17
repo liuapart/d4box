@@ -10,10 +10,11 @@
 #Include "..\core\TimerManager.ahk"
 #Include "..\core\MacroControl.ahk"
 #Include "..\core\HotkeyManager.ahk"
+#Include "..\core\WorkflowHotkeys.ahk"
 #Include "..\gui\ModernUI.ahk"
 #Include "..\gui\MainGUI.ahk"
+#Include "..\gui\WorkflowHotkeysGUI.ahk"
 #Include "..\gui\SkillControls.ahk"
-#Include "..\gui\MouseControls.ahk"
 #Include "..\gui\CubeWorkflowGUI.ahk"
 #Include "..\functions\SkillSystem.ahk"
 #Include "..\functions\MouseActions.ahk"
@@ -23,10 +24,9 @@
 #Include "..\functions\DetectionRegions.ahk"
 #Include "..\gui\DetectionRegionsGUI.ahk"
 #Include "..\functions\CubeRunner.ahk"
-#Include "..\functions\HealthGlobe.ahk"
-#Include "..\functions\ConditionSystem.ahk"
 #Include "..\functions\WindowDiagnostics.ahk"
 #Include "DetectionRegionsTest.ahk"
+#Include "WorkflowHotkeysTest.ahk"
 
 global D4Box_TestFailures := 0
 global D4Box_TestReport := A_ScriptDir "\cube_result.txt"
@@ -147,6 +147,8 @@ class D4Box_RegionTestAdapter extends D4Box_ConfirmTestAdapter {
 }
 
 try {
+    D4Box_TestBindingsModel()
+    D4Box_Assert(true, "workflow bindings: migration, default protection, independent routing, duplicate/conflict checks, persistence and busy/capture guards")
     D4Box_TestDetectionModel()
     D4Box_Assert(true, "detector model: evidence, rename, serialization, reference protection, frame mismatch and missing files")
     builtin := D4Box_CubeReadFile(D4Box_CubeBuiltinsPath(), true)["inventory_transmute"]
