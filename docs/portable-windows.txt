@@ -1,0 +1,25 @@
+d4box - Windows x64 portable application
+
+Run D4Box.exe from a writable folder. AutoHotkey, Qt and Visual Studio do not
+need to be installed. The EXE contains the interpreter and built-in workflows.
+
+The window title shows the version. "Check updates" queries stable AHK releases
+from liuapart/d4box on GitHub. Old editor releases and prereleases are excluded.
+The check never downloads, replaces or executes an update automatically.
+
+To update: stop macros/workflows, exit the application, and replace only the EXE.
+Keep settings.ini and the entire .runtime folder next to it: they contain your
+settings, workflow bindings, custom workflows and detection templates. When
+migrating from source, copy these from app/ahk after closing the old process.
+The new executable can be renamed to D4Box.exe for a stable shortcut path.
+
+SHA256SUMS.txt verifies download integrity; it is not a code signature.
+The executable is not signed. Check the release source before running it.
+
+Third-party notices are in licenses/ in the ZIP, and are also embedded in the
+EXE and extracted to .runtime/licenses at startup. AutoHotkey v2.0.31 is GPLv2:
+https://github.com/AutoHotkey/AutoHotkey/tree/v2.0.31
+Corresponding source: https://github.com/AutoHotkey/AutoHotkey/archive/refs/tags/v2.0.31.zip
+D4KeyHelp source attribution and MIT notice are retained with this application.
+
+Main application releases: https://github.com/liuapart/d4box/releases

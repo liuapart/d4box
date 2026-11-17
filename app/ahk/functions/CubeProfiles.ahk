@@ -1,6 +1,17 @@
 ; Declarative cube workflows. No game input or GUI dependency in this module.
 D4Box_CubeBuiltinsPath() {
-    static path := RegExReplace(A_LineFile, "[^\\/]+$", "") "..\config\cube-workflows.ini"
+    static path := ""
+    if path != ""
+        return path
+    if A_IsCompiled {
+        directory := A_ScriptDir "\.runtime\builtin"
+        DirCreate(directory)
+        target := directory "\cube-workflows.ini"
+        ; Always refresh the bundled defaults; never overwrite a user workflow.
+        FileInstall "config\cube-workflows.ini", target, 1
+        path := target
+    } else
+        path := RegExReplace(A_LineFile, "[^\\/]+$", "") "..\config\cube-workflows.ini"
     return path
 }
 

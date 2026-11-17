@@ -47,7 +47,17 @@ def main() -> int:
         "app/ahk/gui/WorkflowHotkeysGUI.ahk",
         "app/ahk/tests/run.sh",
         "scripts/start-windows.ps1",
-        "scripts/start-editor-windows.ps1",
+        "scripts/build-windows.ps1",
+        "scripts/prepare-ahk-tools.ps1",
+        "app/ahk/core/Version.ahk",
+        "app/ahk/core/Updates.ahk",
+        "app/ahk/core/Distribution.ahk",
+        "app/ahk/gui/UpdatesGUI.ahk",
+        "app/ahk/utils/Json.ahk",
+        "app/ahk/tests/UpdateTest.ahk",
+        ".github/workflows/ahk-release.yml",
+        "docs/ahk-release.md",
+        "docs/portable-windows.txt",
         "docs/architecture.md",
         "docs/windows-validation.md",
         "THIRD_PARTY_NOTICES.md",
@@ -69,9 +79,6 @@ def main() -> int:
         launcher = (ROOT / "scripts/start-windows.ps1").read_text()
         if "app\\ahk\\D4Box.ahk" not in launcher or "SkipUpstream" in launcher:
             raise ValueError("Launcher must start the single local d4box application")
-        editor_launcher = (ROOT / "scripts/start-editor-windows.ps1").read_text()
-        if "scripts\\dev_editor.py" not in editor_launcher or "--qt-prefix" not in editor_launcher:
-            raise ValueError("Windows editor launcher must delegate to the existing development entry")
     except (OSError, subprocess.CalledProcessError, ValueError) as error:
         print(f"FAIL: {error}", file=sys.stderr)
         return 1

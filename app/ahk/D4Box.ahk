@@ -1,7 +1,7 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 ProcessSetPriority "High"
-A_IconTip := "d4box"
+A_IconTip := D4Box_Title()
 
 ; 允许热键中断正在运行的线程
 #MaxThreadsPerHotkey 2
@@ -9,6 +9,10 @@ A_IconTip := "d4box"
 ; ========== 包含所有模块 ==========
 ; 界面语言（必须早于 GlobalVars：策略名、预设名在定义时就要按语言取值）
 #Include "utils/Lang.ahk"
+#Include "core/Version.ahk"
+#Include "utils/Json.ahk"
+#Include "core/Updates.ahk"
+#Include "core/Distribution.ahk"
 
 ; 全局变量定义
 #Include "core/GlobalVars.ahk"
@@ -27,6 +31,7 @@ A_IconTip := "d4box"
 ; GUI模块
 #Include "gui/ModernUI.ahk"
 #Include "gui/MainGUI.ahk"
+#Include "gui/UpdatesGUI.ahk"
 #Include "gui/WorkflowHotkeysGUI.ahk"
 #Include "gui/SkillControls.ahk"
 #Include "gui/CubeWorkflowGUI.ahk"
@@ -47,4 +52,11 @@ A_IconTip := "d4box"
 
 ; ========== 程序启动 ==========
 ; 初始化GUI并启动程序
+if A_Args.Length = 1 && A_Args[1] = "--self-test"
+    D4Box_DistributionSelfTest()
+try D4Box_PrepareDistribution()
+catch as err {
+    MsgBox(L("update.portableError", err.Message), D4Box_Title(), "Iconx")
+    ExitApp(1)
+}
 InitializeGUI()

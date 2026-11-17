@@ -12,6 +12,17 @@ global appLang := "zh"
 
 ; 语言表：key -> {zh, en}
 global LANG_TABLE := Map(
+    "update.title", {zh: "版本与更新", en: "Version and updates"},
+    "update.current", {zh: "当前版本：d4box v{1}", en: "Current version: d4box v{1}"},
+    "update.check", {zh: "检查更新", en: "Check updates"},
+    "update.open", {zh: "打开新版发布页", en: "Open release page"},
+    "update.hint", {zh: "检查主程序稳定版。下载后退出程序，替换 EXE 即可；请保留 settings.ini 和 .runtime。", en: "Check stable app releases. Exit before replacing the EXE; keep settings.ini and .runtime."},
+    "update.checking", {zh: "正在查询 GitHub 主程序发布版本…", en: "Checking GitHub app releases…"},
+    "update.available", {zh: "发现新版 v{1}。可打开发布页下载，退出后替换 EXE。保留 settings.ini 和 .runtime 中的配置、流程与检测模板。", en: "Version {1} is available. Download from the release page, exit, then replace the EXE. Keep settings.ini and .runtime."},
+    "update.latest", {zh: "当前已是最新稳定版，或当前版本高于已发布版本。", en: "This version is up to date or newer than the published stable release."},
+    "update.none", {zh: "尚无可用的 AHK 主程序稳定版发布。旧 editor 版本不会作为主程序更新。", en: "No stable AHK app release is available. Editor releases are excluded."},
+    "update.failed", {zh: "检查未完成，请稍后重试。`n{1}", en: "Could not complete the check. Please retry later.`n{1}"},
+    "update.portableError", {zh: "无法准备程序资源，请将 EXE 放到可写目录后重试。`n{1}", en: "Cannot prepare application resources. Move the EXE to a writable folder and retry.`n{1}"},
     "main.saveMacro", {zh: "保存宏设置", en: "Save macro settings"},
     "runtime.workflow", {zh: "流程执行中 · {1}", en: "Workflow running · {1}"},
     "runtime.cancelling", {zh: "正在取消流程 · {1}", en: "Cancelling workflow · {1}"},
@@ -237,8 +248,8 @@ global LANG_TABLE := Map(
     "main.start",                   {zh: "开始", en: "Start"},
     "main.stop",                    {zh: "停止", en: "Stop"},
     "main.save",                    {zh: "保存设置", en: "Save settings"},
-    "main.hint",                    {zh: "仅游戏前台启动流程 · Tab / 鼠标点击可中断流程"
-                                   , en: "Start workflows in game · Tab / mouse clicks interrupt"},
+    "main.hint",                    {zh: "游戏内执行 · Tab / 点击中断流程"
+                                   , en: "In game only · Tab / click cancels"},
     "main.ready",                   {zh: "就绪", en: "Ready"},
 
     ; ---------- 技能行 ----------

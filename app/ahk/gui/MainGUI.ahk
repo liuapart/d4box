@@ -9,7 +9,7 @@ CreateMainGUI() {
     global MUI_FontName, MUI_T, MUI_Theme
     MUI_SetTheme(MUI_LoadThemeSetting(A_ScriptDir "\settings.ini"))
     MUI_Startup()
-    myGui := Gui("", L("app.title"))
+    myGui := Gui("", D4Box_Title())
     myGui.BackColor := MUI_Hex(MUI_T.window)
     myGui.SetFont("s10 c" MUI_Hex(MUI_T.text), MUI_FontName)
     myGui.MarginX := 12
@@ -54,7 +54,8 @@ CreateMainGUI() {
     D4Box_RuntimeStop.OnEvent("Click", D4Box_StopFromFooter)
     D4Box_RuntimeDetail := myGui.AddText("x20 y438 w688 h34", "")
     statusBar := myGui.AddText("x20 y476 w688 h20 +0x4000", "")
-    myGui.AddText("x20 y506 w496 h22", L("main.hint"))
+    myGui.AddText("x20 y506 w356 h22", L("main.hint"))
+    myGui.AddButton("x388 y500 w136 h28", L("update.check")).OnEvent("Click", D4Box_OpenUpdates)
     myGui.AddButton("x532 y500 w92 h28", MUI_Theme = "dark" ? L("main.theme.toLight") : L("main.theme.toDark")).OnEvent("Click", ToggleTheme)
     myGui.AddButton("x632 y500 w76 h28", Lang_SwitchButtonText()).OnEvent("Click", ToggleLanguage)
     D4Box_RefreshRuntimeStatus()

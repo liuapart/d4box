@@ -1,0 +1,97 @@
+name: AHK build and release
+
+on:
+  push:
+    branches: [main]
+    tags: ['d4box-v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ahk-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+      - name: Static checks and regression tests
+        shell: pwsh
+        run: |
+          python scripts/check_project.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s scripts/tests -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/prepare-ahk-tools.ps1
+      - name: Native AHK validation, model and GUI tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          export AHK="$PWD/.runtime/ahk-build-tools/AutoHotkey-2.0.31/AutoHotkey64.exe"
+          bash -n app/ahk/tests/run.sh
+          bash app/ahk/tests/run.sh all
+      - name: Compile and test standalone x64 executable
+        shell: pwsh
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          $tag = if ($env:REF_TYPE -eq 'tag') { $env:REF_NAME } else { '' }
+          ./scripts/build-windows.ps1 -Tag $tag
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: d4box-windows-x64
+          path: |
+            .runtime/dist/D4Box-v*-windows-x64.exe
+            .runtime/dist/D4Box-v*-windows-x64.zip
+            .runtime/dist/SHA256SUMS.txt
+          include-hidden-files: true
+          if-no-files-found: error
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/d4box-v')
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: d4box-windows-x64
+          path: dist
+      - name: Verify assets and publish a new stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^d4box-v(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})\.(0|[1-9][0-9]{0,3})$ ]]
+          version="${TAG#d4box-v}"
+          stem="D4Box-v${version}-windows-x64"
+          cd dist
+          test "$(find . -maxdepth 1 -type f | wc -l)" -eq 3
+          test -s "$stem.exe" && test -s "$stem.zip" && test -s SHA256SUMS.txt
+          sha256sum --check --strict SHA256SUMS.txt
+          # Never overwrite an existing public release; failures leave a reviewable draft.
+          gh release create "$TAG" "$stem.exe" "$stem.zip" SHA256SUMS.txt \
+            --verify-tag --draft --title "d4box v${version}" --generate-notes
+          mkdir verify
+          gh release download "$TAG" --dir verify
+          (cd verify && sha256sum --check --strict SHA256SUMS.txt)
+          cmp SHA256SUMS.txt verify/SHA256SUMS.txt
+          gh release edit "$TAG" --draft=false --latest

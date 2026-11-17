@@ -1,6 +1,6 @@
 # Windows 验证清单
 
-状态：截至 2026-11-12，本清单中的 Windows 与游戏内实测均未在本次文档核对中执行。macOS 仓库检查不能替代 AutoHotkey、PowerShell 或真实游戏验证；未实际完成的项目保持未验证。
+本清单区分 Windows 离线测试、独立 EXE 启动与真实游戏操作。macOS 静态检查不能替代 Windows 原生验证；游戏内项目完成后应另行记录环境和结果。
 
 ## 验证层级
 
@@ -31,13 +31,21 @@ bash app/ahk/tests/run.sh smoke
 - `workflow` 使用假输入适配器验证流程规划、配置读写、取消和检查失败；不发送游戏输入，也不需要截图样本。
 - 验证右键选择物品：单次模式启动时将鼠标指向目标，确认前置步骤移动鼠标后仍选择原目标；背包模式用不同格的物品确认逐格选择。显式右键步骤前不应额外自动放入；无右键步骤的旧背包流程仍自动放入一次。选择动作的 X/Y 与采集应禁用，切回配方点击/颜色检查时恢复；预览应显示目标来源。
 - `smoke` 加载模块并创建主界面，读取 `app/ahk/tests/smoke_result.txt` 判断结果；检查报告内容，不只看进程退出码。
-- all 依次运行加载检查、界面冒烟和 workflow；不包含已移除的血球测试。
+- `update` 验证 JSON、数字版本比较、旧 editor/预发布排除、缺失资产、超时/限流、异步取消和错误响应；`all` 包含加载、冒烟、workflow、update。
 
 `run.sh` 会优先探测项目内 `.runtime/autohotkey/v2/AutoHotkey64.exe`，然后探测系统安装的 AutoHotkey v2；可用 `AHK` 环境变量指定解释器。Git Bash 下由脚本处理 AHK 开关的路径转换和超时保护。脚本退出码 `0` 表示所选步骤通过，`1` 表示测试失败，`2` 表示运行环境不满足或参数无效。
 
 PowerShell 启动入口为 `scripts/start-windows.ps1`。它要求 Windows 和 AutoHotkey v2，优先探测项目内 `.runtime/autohotkey/v2/AutoHotkey64.exe`（Git 忽略），然后探测常见安装位置，也可用 `-AhkPath` 指定解释器；实际入口是 `app/ahk/D4Box.ahk`，工作目录设为入口脚本所在的 `app/ahk`。启动后主界面、热键、宏、配方流程和诊断由同一 AHK 进程管理。入口旁的既有 `settings.ini`、日志及 `.runtime` 数据是本机运行数据，不应作为个人配置提交。
 
-编辑器开发入口为 `scripts/start-editor-windows.ps1`。它会在普通 PowerShell 中自动加载已安装的 VS 2022 x64 编译环境，支持仅安装 Build Tools；仍需 C++ 工作负载（MSVC v143、Windows SDK）、Python 3.10+、CMake、Ninja 与 Qt 6 MSVC Base + SVG SDK；它调用 `scripts/dev_editor.py` 完成构建、CTest 和启动，不代表已验证 Windows 原生覆盖层。正式编辑器包从 Release 下载并解压后直接运行 `D4BoxEditor.exe`；不要从仓库启动脚本把它误认为 AHK 集成版。
+独立 EXE 通过 `scripts/build-windows.ps1` 构建：固定官方工具与 SHA-256、校验版本和 x64 PE、将单独 EXE 复制到新的含空格目录运行 `--self-test`。无需 Qt、VS 或系统 AHK。仅创建程序自身界面并验证内置流程可读，不发送游戏输入。发布规则见 [AHK 发布说明](ahk-release.md)。
+
+### 版本与更新
+
+- [ ] 标题版本、EXE 文件属性和发布标签一致；只有 EXE、无源码/config 的目录也能打开内置流程。
+- [ ] 检查更新窗口在中英文、明暗主题下可读；查询中界面仍可操作，关闭窗口不会迟到弹窗。
+- [ ] 旧 editor、草稿、预发布与缺少 EXE/校验清单的发行版不作为更新；有新稳定主程序时打开正确发布页。
+- [ ] 断网、HTTP 限流、超时显示检查未完成，可重试；“无稳定版”与“当前已是最新”区分。
+- [ ] 更新只替换 EXE 后，设置、流程、快捷键和检测模板仍保留；本功能不自动下载、覆盖或启动安装器。
 
 ### 真实 Windows 与游戏内检查
 
@@ -47,9 +55,9 @@ PowerShell 启动入口为 `scripts/start-windows.ps1`。它要求 Windows 和 A
 
 - [ ] 使用 `scripts/start-windows.ps1` 启动，确认它找到 AHK v2 并打开 `app/ahk/D4Box.ahk`；另在含空格的仓库路径验证启动。
 - [ ] 确认只有一个主程序实例；四组预设、主题、语言切换、设置保存及重启恢复正常。
-- [ ] 验证 F1 启停、切出游戏暂停、返回恢复和手动点击暂停。
-- [ ] 分别验证连点、维持 BUFF、按住及鼠标按键配置；检查翻滚、喝药、强制移动和鼠标移动。
-- [ ] 在可控配置下检查满血、低血量、护盾遮挡时的读数及喝药策略；检查停止和退出时会释放按住的按键。
+- [ ] 验证 F1 启停、切出游戏暂停和返回恢复。
+- [ ] 分别验证连点、维持 BUFF、按住及鼠标按键配置。
+- [ ] 检查停止和退出时释放按住的按键。
 
 ## 窗口诊断
 

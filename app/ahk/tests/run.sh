@@ -104,7 +104,7 @@ step_validate() {
     # validate 正常约 0.1 秒，收紧到 10 秒，出错时不必白等 30 秒
     local RUN_TIMEOUT
     if command -v timeout >/dev/null 2>&1; then RUN_TIMEOUT="timeout 10"; fi
-    for f in D4Box.ahk tests/SmokeTest.ahk tests/CubeWorkflowTest.ahk; do
+    for f in D4Box.ahk tests/SmokeTest.ahk tests/CubeWorkflowTest.ahk tests/UpdateTest.ahk; do
         run_ahk //validate //ErrorStdOut "$f"
         rc=$AHK_RC
         if [ "$rc" -eq 0 ]; then
@@ -175,6 +175,20 @@ step_workflow() {
 
 # ---------- 调度 ----------
 
+step_update() {
+    local report_file="tests/update_result.txt"
+    rm -f "$report_file"
+    run_ahk //ErrorStdOut tests/UpdateTest.ahk
+    if [ "$AHK_RC" -ne 0 ] || [ ! -f "$report_file" ] || grep -q '^FAIL ' "$report_file" || ! grep -q '^done$' "$report_file"; then
+        report "update" 1 "exit=$AHK_RC or incomplete regression"
+        printf '%s\n' "$AHK_OUT" | indent
+        [ -f "$report_file" ] && indent < "$report_file"
+        return 1
+    fi
+    report "update" 0
+    indent < "$report_file"
+}
+
 echo "解释器: $AHK"
 echo
 
@@ -182,9 +196,10 @@ case "$STEP" in
     validate) step_validate ;;
     smoke)    step_smoke ;;
     workflow) step_workflow ;;
-    all)      step_validate; step_smoke; step_workflow ;;
+    update)   step_update ;;
+    all)      step_validate; step_smoke; step_workflow; step_update ;;
     *)
-        echo "用法: bash tests/run.sh [validate|smoke|workflow|all]" >&2
+        echo "用法: bash tests/run.sh [validate|smoke|workflow|update|all]" >&2
         exit 2
         ;;
 esac

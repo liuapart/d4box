@@ -3,6 +3,10 @@
 #SingleInstance Off
 #NoTrayIcon
 #Include "..\utils\Lang.ahk"
+#Include "..\core\Version.ahk"
+#Include "..\utils\Json.ahk"
+#Include "..\core\Updates.ahk"
+#Include "..\gui\UpdatesGUI.ahk"
 #Include "..\core\GlobalVars.ahk"
 #Include "..\utils\Logger.ahk"
 #Include "..\utils\Settings.ahk"

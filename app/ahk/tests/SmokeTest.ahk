@@ -7,6 +7,10 @@
 
 ; 与应用完全一致的模块加载顺序
 #Include "..\utils\Lang.ahk"
+#Include "..\core\Version.ahk"
+#Include "..\utils\Json.ahk"
+#Include "..\core\Updates.ahk"
+#Include "..\gui\UpdatesGUI.ahk"
 #Include "..\core\GlobalVars.ahk"
 #Include "..\utils\Logger.ahk"
 #Include "..\utils\Settings.ahk"
@@ -169,6 +173,40 @@ try {
     Append "中英文与明暗主题页面创建正常"
 } catch as err {
     Append "主界面主题异常: " err.Message " @" err.File ":" err.Line
+}
+
+try {
+    for lang in ["zh", "en"] {
+        appLang := lang
+        D4Box_ShowUpdates(false)
+        ui := D4Box_UpdateUI
+        D4Box_UpdateFinished(ui, false, "")
+        if ui.status.Text != L("update.none") || ui.open.Enabled
+            throw Error("Missing-release UI state mismatch")
+        D4Box_UpdateFinished(ui, {version: D4Box_Version(), url: ""}, "")
+        if ui.status.Text != L("update.latest") || ui.open.Enabled
+            throw Error("Current-version UI state mismatch")
+        D4Box_UpdateFinished(ui, {version: "9999.0.0", url: "https://github.com/liuapart/d4box/releases/tag/d4box-v9999.0.0"}, "")
+        if !ui.open.Enabled || !InStr(ui.status.Text, "9999.0.0")
+            throw Error("Update-available UI state mismatch")
+        WinRedraw(ui.gui.Hwnd)
+        Sleep 100
+        WinGetClientPos(&ux, &uy, &uw, &uh, ui.gui.Hwnd)
+        preview := CaptureScreenRegion(ux, uy, uw, uh)
+        D4Box_DetectorWriteBitmap(preview, 0, 0, uw, uh, A_ScriptDir "\.runtime\update-" lang ".bmp")
+        D4Box_CloseUpdates()
+        D4Box_UpdateFinished(ui, false, "late callback")
+        if IsObject(D4Box_UpdateUI)
+            throw Error("Closed update window recreated")
+        D4Box_ShowUpdates(false)
+        D4Box_UpdateFinished(D4Box_UpdateUI, false, "HTTP 403")
+        if !InStr(D4Box_UpdateUI.status.Text, "HTTP 403") || D4Box_UpdateUI.open.Enabled || !D4Box_UpdateUI.check.Enabled
+            throw Error("Update error/retry UI state mismatch")
+        D4Box_CloseUpdates()
+    }
+    Append "版本更新窗口状态、关闭与重试正常"
+} catch as err {
+    Append "版本更新窗口异常: " err.Message " @" err.File ":" err.Line
 }
 
 SetTimer(Quit, -1500)
