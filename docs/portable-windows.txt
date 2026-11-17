@@ -3,6 +3,11 @@ d4box - Windows x64 portable application
 Run D4Box.exe from a writable folder. AutoHotkey, Qt and Visual Studio do not
 need to be installed. The EXE contains the interpreter and built-in workflows.
 
+Illustrated user guide (Chinese):
+https://github.com/liuapart/d4box/blob/main/docs/guide/README.md
+Installation, first-run setup, macros, workflows, detection regions, hotkeys,
+updates, backups and troubleshooting are covered with application screenshots.
+
 The window title shows the version. "Check updates" queries stable AHK releases
 from liuapart/d4box on GitHub. Old editor releases and prereleases are excluded.
 The check never downloads, replaces or executes an update automatically.

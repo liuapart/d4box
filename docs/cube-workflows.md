@@ -1,8 +1,12 @@
 # 魔盒配方流程
 
+本页为执行语义和配置格式参考。首次使用请先看[图文流程教程](guide/workflows.md)、[检测区域教程](guide/detection-regions.md)及[快捷键教程](guide/hotkeys.md)。[文档目录](README.md)
+
+下文 `app/ahk/.runtime` 等路径是源码运行位置；使用独立 EXE 时，相应数据位于 EXE 旁的 `.runtime`。完整位置与备份方式见[更新与备份](guide/updates-and-backup.md#data)。
+
 ## 流程快捷键
 
-主界面的“流程快捷键”列表显示键位、流程名称和绑定类型。首次启动从原先选用的流程建立默认 F3 绑定；默认绑定可改键、改流程，不能删除。选中一行后点击“编辑绑定”，或双击该行；“新增绑定”可给其他已保存流程分配不同快捷键，最多 32 条。
+主界面的“流程快捷键”列表显示键位、流程名称和绑定类型。首次启动从原先选用的流程建立默认 F3 绑定；默认绑定可改键、改流程，不能删除。选中一行后点击“编辑绑定”，或双击该行；“新增绑定”可给其他已保存流程分配不同快捷键，总共最多 32 条（包含默认绑定）。
 
 绑定保存在 `app/ahk/.runtime/workflow-hotkeys.ini`，不随四套按键宏配置切换。使用键盘快捷键，可组合 Ctrl、Alt、Shift；只在对应修饰键组合下触发。Tab、鼠标按键、单独修饰键、Ctrl+Alt+F8 和宏启停键冲突会被拒绝。宏启停键使用通配匹配，因此同一个主键即使加了修饰键也不能用于流程。
 
@@ -73,7 +77,7 @@ Windows 主程序统一从 `app/ahk/D4Box.ahk` 启动。该单一 AHK v2 进程�
 
 - 内置配置：`app/ahk/config/cube-workflows.ini`，随仓库维护。
 - 用户自定义流程及当前选用项：`app/ahk/.runtime/cube-workflows.ini`，由 AHK 创建并被 Git 忽略。用户运行数据和主程序设置不会写入内置配置。
-- 主程序既有 `settings.ini`、日志位于 `app/ahk` 入口脚本旁；新诊断产物位于该目录的 `.runtime`。配置编辑器当前只编辑草稿 JSON，尚未接入 AHK；魔盒运行时仍读取 INI。
+- 主程序既有 `settings.ini`、日志位于 `app/ahk` 入口脚本旁；新诊断产物位于该目录的 `.runtime`。当前使用主程序内置流程编辑器直接保存运行时 INI；独立 Qt editor 已归档，不属于当前使用路径。
 - INI 中 `Source=manual` 保持兼容，现在界面显示为“单次物品（鼠标指向）”；没有右键步骤的旧手动流程行为不变。`rightclick` 的 X/Y 字段仅为文件格式兼容保留，编辑器保存为 0，运行时不使用。
 - 内置 INI 用 ASCII 键名，显示名称来自 `utils/Lang.ahk` 的中英文语言资源，以避开 Windows INI API 的 UTF-8 编码差异。用户流程由 AHK `IniWrite` 保存。步骤字段为：
 
